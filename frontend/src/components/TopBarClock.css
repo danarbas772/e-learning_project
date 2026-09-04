@@ -1,0 +1,124 @@
+/* ─── TopBar Realtime Date & Clock Widget ─────────────────────── */
+.topbar-clock-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 20px 6px;
+  width: 100%;
+}
+
+.topbar-clock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 18px;
+  background: hsla(220, 20%, 14%, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+}
+
+.topbar-clock-pill:hover {
+  border-color: hsla(250, 85%, 60%, 0.4);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+}
+
+.topbar-clock-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.topbar-clock-icon {
+  flex-shrink: 0;
+}
+
+.calendar-icon {
+  color: var(--color-primary-light);
+}
+
+.clock-icon {
+  color: var(--color-accent);
+}
+
+.topbar-clock-date {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.topbar-clock-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border-subtle);
+}
+
+.topbar-clock-time {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.topbar-clock-tz {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-left: 2px;
+}
+
+/* Glowing green pulse dot */
+.clock-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: hsl(160, 80%, 50%);
+  box-shadow: 0 0 8px hsl(160, 80%, 50%);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar-clock-container {
+    padding: 10px 12px 4px;
+  }
+  .topbar-clock-pill {
+    font-size: 0.75rem;
+    gap: 8px;
+    padding: 6px 12px;
+    max-width: 100%;
+    justify-content: center;
+  }
+  .topbar-clock-time {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .topbar-clock-container {
+    padding: 8px 8px 2px;
+  }
+  .topbar-clock-pill {
+    font-size: 0.68rem;
+    gap: 6px;
+    padding: 5px 8px;
+  }
+  .topbar-clock-divider {
+    height: 12px;
+  }
+}

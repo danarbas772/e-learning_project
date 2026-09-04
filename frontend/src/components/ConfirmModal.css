@@ -1,0 +1,276 @@
+/* ===================================================
+   ConfirmModal — Modern Glassmorphic Dialog
+   =================================================== */
+
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(4, 7, 14, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.confirm-modal-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: hsl(220, 18%, 12%);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: 28px 26px 24px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px hsla(220, 20%, 100%, 0.05);
+  animation: modalScaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+/* Subtle glow behind dialog based on type */
+.confirm-modal-dialog::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 100px;
+  border-radius: 50%;
+  filter: blur(50px);
+  pointer-events: none;
+  opacity: 0.25;
+}
+
+.confirm-modal-dialog.danger::before {
+  background: hsl(0, 78%, 60%);
+}
+
+.confirm-modal-dialog.warning::before {
+  background: hsl(38, 90%, 52%);
+}
+
+.confirm-modal-dialog.success::before,
+.confirm-modal-dialog.save::before {
+  background: hsl(142, 70%, 45%);
+}
+
+.confirm-modal-dialog.info::before {
+  background: var(--color-primary);
+}
+
+.confirm-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.confirm-modal-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+}
+
+.confirm-modal-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.confirm-icon-bubble {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.confirm-icon-bubble.danger {
+  background: hsla(0, 78%, 60%, 0.14);
+  color: hsl(0, 78%, 65%);
+  border: 1px solid hsla(0, 78%, 60%, 0.28);
+  box-shadow: 0 0 24px hsla(0, 78%, 60%, 0.2);
+}
+
+.confirm-icon-bubble.warning {
+  background: hsla(38, 90%, 52%, 0.14);
+  color: hsl(38, 90%, 65%);
+  border: 1px solid hsla(38, 90%, 52%, 0.28);
+  box-shadow: 0 0 24px hsla(38, 90%, 52%, 0.2);
+}
+
+.confirm-icon-bubble.success,
+.confirm-icon-bubble.save {
+  background: hsla(142, 70%, 45%, 0.14);
+  color: hsl(142, 70%, 65%);
+  border: 1px solid hsla(142, 70%, 45%, 0.28);
+  box-shadow: 0 0 24px hsla(142, 70%, 45%, 0.2);
+}
+
+.confirm-icon-bubble.info {
+  background: hsla(250, 85%, 60%, 0.14);
+  color: var(--color-primary-light);
+  border: 1px solid hsla(250, 85%, 60%, 0.28);
+  box-shadow: 0 0 24px hsla(250, 85%, 60%, 0.2);
+}
+
+.confirm-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.confirm-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.confirm-modal-message {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-confirm-cancel {
+  flex: 1;
+  padding: 11px 18px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-confirm-cancel:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.btn-confirm-action {
+  flex: 1;
+  padding: 11px 20px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.btn-confirm-danger {
+  background: linear-gradient(135deg, hsl(0, 78%, 60%), hsl(350, 80%, 50%));
+  color: white;
+  box-shadow: 0 4px 16px hsla(0, 78%, 60%, 0.35);
+}
+
+.btn-confirm-danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, hsl(0, 78%, 65%), hsl(350, 80%, 55%));
+  box-shadow: 0 6px 20px hsla(0, 78%, 60%, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-confirm-warning {
+  background: linear-gradient(135deg, hsl(38, 90%, 52%), hsl(25, 95%, 48%));
+  color: #111;
+  box-shadow: 0 4px 16px hsla(38, 90%, 52%, 0.35);
+}
+
+.btn-confirm-warning:hover:not(:disabled) {
+  box-shadow: 0 6px 20px hsla(38, 90%, 52%, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-confirm-success {
+  background: linear-gradient(135deg, hsl(142, 70%, 45%), hsl(160, 75%, 40%));
+  color: white;
+  box-shadow: 0 4px 16px hsla(142, 70%, 45%, 0.35);
+}
+
+.btn-confirm-success:hover:not(:disabled) {
+  box-shadow: 0 6px 20px hsla(142, 70%, 45%, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-confirm-primary {
+  background: linear-gradient(135deg, var(--color-primary), hsl(270, 80%, 60%));
+  color: white;
+  box-shadow: 0 4px 16px var(--color-primary-glow);
+}
+
+.btn-confirm-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px var(--color-primary-glow);
+  transform: translateY(-1px);
+}
+
+.confirm-btn-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

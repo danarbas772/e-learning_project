@@ -1,0 +1,670 @@
+/* ══════════════════════════════════════════════════════════════════════
+   CourseForumDetail.css — Forum Style Mata Kuliah & Sesi Pertemuan
+   ══════════════════════════════════════════════════════════════════════ */
+
+.forum-page {
+  padding-bottom: 60px;
+}
+
+/* ─── Breadcrumb ──────────────────────────────────────────────────────── */
+.forum-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.forum-breadcrumb a {
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.forum-breadcrumb a:hover {
+  color: var(--color-primary-light);
+}
+
+.forum-breadcrumb-current {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ─── Hero / Header Forum ─────────────────────────────────────────────── */
+.forum-hero-card {
+  text-align: center;
+  padding: 40px 24px 32px;
+  margin-bottom: 30px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--bg-card) 0%, rgba(20, 24, 33, 0.7) 100%);
+  border: 1px solid var(--border-default);
+}
+
+.forum-hero-icon-wrap {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 18px;
+  background: linear-gradient(135deg, hsl(205, 85%, 52%), hsl(220, 90%, 60%));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  box-shadow: 0 10px 25px rgba(2, 132, 199, 0.35);
+}
+
+.forum-hero-title {
+  font-size: clamp(1.6rem, 4vw, 2.3rem);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
+}
+
+.forum-hero-desc {
+  max-width: 720px;
+  margin: 0 auto 20px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.forum-hero-meta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.forum-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Announcements Box (Pengumuman Dosen / Admin) ─────────────────────── */
+.announcement-section {
+  margin-bottom: 36px;
+}
+
+.announcement-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.announcement-header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.announcement-card {
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  border-left: 4px solid var(--color-primary);
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border-top: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.announcement-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.announcement-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.announcement-author-time {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.announcement-content {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-line;
+  margin-bottom: 14px;
+}
+
+.announcement-file-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--color-primary-light);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.announcement-file-attachment:hover {
+  background: hsla(250, 85%, 60%, 0.15);
+  border-color: var(--color-primary);
+}
+
+/* ─── Sessions Container (Pertemuan I, II, dst) ───────────────────────── */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.session-box {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+
+.session-box:hover {
+  border-color: var(--border-default);
+}
+
+/* Title Bar abu-abu khas e-learning academic */
+.session-bar-header {
+  padding: 14px 20px;
+  background: hsl(220, 16%, 17%);
+  border-left: 5px solid hsl(205, 85%, 52%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.session-bar-title {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.session-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Session Body Content */
+.session-body {
+  padding: 20px;
+}
+
+/* ─── Session Materials List (Judul, Paragraf Deskripsi & Berkas) ─── */
+.session-materials-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.session-material-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  transition: all var(--transition-fast);
+}
+
+.session-material-card:hover {
+  border-color: hsla(250, 85%, 60%, 0.4);
+}
+
+.session-material-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.session-material-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.material-badge-pill {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+}
+
+.material-badge-pill.ppt, .material-badge-pill.pptx {
+  background: hsla(15, 85%, 55%, 0.15);
+  color: hsl(15, 85%, 65%);
+  border: 1px solid hsla(15, 85%, 55%, 0.3);
+}
+
+.material-badge-pill.pdf {
+  background: hsla(0, 80%, 55%, 0.15);
+  color: hsl(0, 80%, 65%);
+  border: 1px solid hsla(0, 80%, 55%, 0.3);
+}
+
+.material-badge-pill.doc, .material-badge-pill.docx {
+  background: hsla(220, 85%, 55%, 0.15);
+  color: hsl(220, 85%, 65%);
+  border: 1px solid hsla(220, 85%, 55%, 0.3);
+}
+
+.material-badge-pill.video {
+  background: hsla(270, 85%, 55%, 0.15);
+  color: hsl(270, 85%, 65%);
+  border: 1px solid hsla(270, 85%, 55%, 0.3);
+}
+
+.session-material-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.session-material-desc {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-line;
+  margin-bottom: 14px;
+}
+
+.session-material-attachment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: hsla(220, 18%, 13%, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.attachment-file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.attachment-icon {
+  color: var(--color-primary-light);
+  flex-shrink: 0;
+}
+
+.attachment-texts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.attachment-filename {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.attachment-filesize {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: hsla(0, 0%, 100%, 0.06);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-attachment-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: hsla(250, 85%, 60%, 0.15);
+  color: var(--color-primary-light);
+  border: 1px solid hsla(250, 85%, 60%, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-attachment-download:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.btn-action-icon {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition-fast);
+}
+
+.btn-action-icon.delete:hover {
+  color: var(--color-danger);
+  background: hsla(0, 78%, 60%, 0.15);
+}
+
+.session-empty-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  padding: 14px 16px;
+  background: hsla(220, 18%, 13%, 0.4);
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border-subtle);
+  margin-bottom: 16px;
+}
+
+/* ─── Ujian Tengah Semester (Midterm Banner di Pertengahan) ───────────── */
+.midterm-exam-card {
+  margin: 10px 0 20px;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, hsla(38, 90%, 50%, 0.12), hsla(15, 90%, 50%, 0.15));
+  border: 2px dashed hsl(38, 90%, 52%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.midterm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: hsl(38, 90%, 52%);
+  color: black;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.midterm-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.midterm-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+/* ─── Comments Section (Forum Komentar) ───────────────────────────────── */
+.session-comments-wrap {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.comments-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color var(--transition-fast);
+}
+
+.comments-toggle-btn:hover {
+  color: var(--color-primary-light);
+}
+
+.comments-box {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.comment-bubble {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+.comment-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.comment-user-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-user-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.comment-role-tag {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+}
+
+.comment-role-admin { background: hsla(0, 78%, 60%, 0.15); color: hsl(0, 78%, 70%); }
+.comment-role-instructor { background: hsla(250, 85%, 60%, 0.15); color: var(--color-primary-light); }
+.comment-role-student { background: hsla(180, 80%, 48%, 0.15); color: var(--color-accent-light); }
+
+.comment-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.comment-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.comment-input-form {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.comment-input {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.comment-input:focus {
+  border-color: var(--color-primary);
+}
+
+/* ─── Thread Container ─── */
+.comments-scroll-area {
+  max-height: 300px; /* ≈ 3 komentar induk dengan reply */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+}
+
+.comments-scroll-area::-webkit-scrollbar {
+  width: 5px;
+}
+
+.comments-scroll-area::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+
+.comment-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comments-empty-text {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* ─── Reply Bubble (indented) ─── */
+.comment-reply-bubble {
+  margin-left: 28px;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  background: hsla(250, 85%, 60%, 0.06);
+  border: 1px solid hsla(250, 85%, 60%, 0.18);
+  border-left: 2px solid var(--color-primary);
+}
+
+/* ─── Comment Bubble Actions Row ─── */
+.comment-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ─── Reply Button ─── */
+.btn-comment-reply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-primary-light);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.btn-comment-reply:hover {
+  background: hsla(250, 85%, 60%, 0.12);
+}
+
+/* ─── Inline Reply Form ─── */
+.comment-reply-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 28px;
+  margin-top: 4px;
+}
+
+
+.forum-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.forum-modal-content {
+  width: 100%;
+  max-width: 620px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .session-bar-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .session-blue-banner {
+    font-size: 0.85rem;
+  }
+
+  .material-items-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .comment-input-form {
+    flex-direction: column;
+  }
+
+  .forum-modal-content {
+    padding: 20px 16px;
+  }
+
+  .comment-reply-form {
+    margin-left: 10px;
+  }
+}

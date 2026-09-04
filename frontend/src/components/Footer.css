@@ -1,0 +1,39 @@
+/* ─── Global App Footer ────────────────────────────────────────── */
+.app-footer {
+  width: 100%;
+  padding: 24px 20px;
+  margin-top: auto;
+  text-align: center;
+  border-top: 1px solid var(--border-subtle);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.app-footer-text {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.3px;
+  margin: 0;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
+}
+
+.app-footer-text:hover {
+  opacity: 0.95;
+}
+
+/* Auth / Login Page Footer */
+.app-footer.auth-footer {
+  border-top: none;
+  padding: 16px 0 8px;
+}
+
+@media (max-width: 768px) {
+  .app-footer {
+    padding: 20px 16px;
+  }
+  .app-footer-text {
+    font-size: 0.75rem;
+  }
+}
