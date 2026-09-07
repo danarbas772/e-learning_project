@@ -177,10 +177,21 @@
   border-radius: 50%;
 }
 
-.dot-class { background-color: hsl(205, 90%, 55%); }
-.dot-exam { background-color: hsl(38, 90%, 55%); }
-.dot-deadline { background-color: hsl(0, 78%, 60%); }
-.dot-holiday { background-color: hsl(160, 80%, 45%); }
+.dot-class {
+  background-color: hsl(205, 90%, 55%);
+}
+
+.dot-exam {
+  background-color: hsl(38, 90%, 55%);
+}
+
+.dot-deadline {
+  background-color: hsl(0, 78%, 60%);
+}
+
+.dot-holiday {
+  background-color: hsl(160, 80%, 45%);
+}
 
 /* Sidebar Agenda */
 .calendar-sidebar-card {
@@ -241,10 +252,21 @@
   gap: 6px;
 }
 
-.agenda-item.exam { border-left: 4px solid hsl(38, 90%, 52%); }
-.agenda-item.class { border-left: 4px solid hsl(205, 90%, 55%); }
-.agenda-item.deadline { border-left: 4px solid hsl(0, 78%, 60%); }
-.agenda-item.holiday { border-left: 4px solid hsl(160, 80%, 45%); }
+.agenda-item.exam {
+  border-left: 4px solid hsl(38, 90%, 52%);
+}
+
+.agenda-item.class {
+  border-left: 4px solid hsl(205, 90%, 55%);
+}
+
+.agenda-item.deadline {
+  border-left: 4px solid hsl(0, 78%, 60%);
+}
+
+.agenda-item.holiday {
+  border-left: 4px solid hsl(160, 80%, 45%);
+}
 
 .agenda-item-top {
   display: flex;
@@ -263,10 +285,25 @@
   border-radius: var(--radius-full);
 }
 
-.badge-exam { background: hsla(38, 90%, 52%, 0.15); color: hsl(38, 90%, 65%); }
-.badge-class { background: hsla(205, 90%, 55%, 0.15); color: hsl(205, 90%, 75%); }
-.badge-deadline { background: hsla(0, 78%, 60%, 0.15); color: hsl(0, 78%, 75%); }
-.badge-holiday { background: hsla(160, 80%, 45%, 0.15); color: hsl(160, 80%, 70%); }
+.badge-exam {
+  background: hsla(38, 90%, 52%, 0.15);
+  color: hsl(38, 90%, 65%);
+}
+
+.badge-class {
+  background: hsla(205, 90%, 55%, 0.15);
+  color: hsl(205, 90%, 75%);
+}
+
+.badge-deadline {
+  background: hsla(0, 78%, 60%, 0.15);
+  color: hsl(0, 78%, 75%);
+}
+
+.badge-holiday {
+  background: hsla(160, 80%, 45%, 0.15);
+  color: hsl(160, 80%, 70%);
+}
 
 .agenda-time {
   font-size: 0.78rem;

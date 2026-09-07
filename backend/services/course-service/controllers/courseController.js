@@ -46,7 +46,7 @@ async function getAllCourses(req, res) {
         const token = req.headers.authorization.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elearning_secret_key_2024');
         currentUserId = decoded.id;
-      } catch (e) {}
+      } catch (e) { }
     }
 
     const sId = currentUserId ? parseInt(currentUserId, 10) : -1;
@@ -129,7 +129,7 @@ async function getCourseById(req, res) {
       const token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elearning_secret_key_2024');
       studentUserId = decoded.id;
-    } catch (e) {}
+    } catch (e) { }
   }
 
   try {
@@ -150,7 +150,7 @@ async function getCourseById(req, res) {
             if (rule.user_id && studentUserId && Number(rule.user_id) === Number(studentUserId)) return true;
             // 2. Cocokkan Angkatan (hanya rule_type = 'year')
             if (rule.rule_type === 'year' && rule.academic_year && user_academic_year &&
-                String(rule.academic_year).trim() === String(user_academic_year).trim()) return true;
+              String(rule.academic_year).trim() === String(user_academic_year).trim()) return true;
             // 3. Cocokkan Nama (hanya rule_type = 'name' atau 'student' tanpa user_id)
             if ((rule.rule_type === 'name' || rule.rule_type === 'student') && !rule.user_id && user_name && rule.full_name) {
               const rName = rule.full_name.toLowerCase().trim();
@@ -173,9 +173,9 @@ async function getCourseById(req, res) {
 
     // Ambil sections & materials
     let [sections] = await pool.query(
-       'SELECT * FROM sections WHERE course_id = ? ORDER BY order_index ASC',
-       [id]
-     );
+      'SELECT * FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+      [id]
+    );
 
     // Jika sections belum ada, auto buatkan berdasarkan total_sessions mata kuliah
     if (sections.length === 0) {
@@ -560,18 +560,23 @@ async function getComments(req, res) {
   const { courseId } = req.params;
   const { session_id, announcement_id } = req.query;
   try {
-    let query = 'SELECT * FROM comments WHERE course_id = ?';
+    let query = `SELECT c.*, 
+                        COALESCE(NULLIF(p.full_name, ''), c.user_name) AS user_name,
+                        p.avatar_url
+                 FROM comments c
+                 LEFT JOIN elearning_users.profiles p ON c.user_id = p.user_id
+                 WHERE c.course_id = ?`;
     const params = [courseId];
 
     if (session_id) {
-      query += ' AND session_id = ?';
+      query += ' AND c.session_id = ?';
       params.push(session_id);
     } else if (announcement_id) {
-      query += ' AND announcement_id = ?';
+      query += ' AND c.announcement_id = ?';
       params.push(announcement_id);
     }
 
-    query += ' ORDER BY created_at ASC';
+    query += ' ORDER BY c.created_at ASC';
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
   } catch (err) {
@@ -585,7 +590,24 @@ async function createComment(req, res) {
   const { session_id, announcement_id, comment_text, user_name, parent_id } = req.body;
   const user_id = req.user.id;
   const user_role = req.user.role || 'student';
-  const finalUserName = user_name || req.user.email || 'Pengguna';
+
+  // Utamakan mengambil Nama Lengkap dari elearning_users.profiles
+  let finalUserName = user_name;
+  try {
+    const [prof] = await pool.query(
+      'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+      [user_id]
+    );
+    if (prof.length > 0 && prof[0].full_name && prof[0].full_name.trim()) {
+      finalUserName = prof[0].full_name.trim();
+    }
+  } catch (e) {
+    console.warn('Could not fetch user full_name for comment:', e.message);
+  }
+
+  if (!finalUserName || !finalUserName.trim()) {
+    finalUserName = req.user.email || 'Pengguna';
+  }
 
   if (!comment_text || !comment_text.trim()) {
     return res.status(400).json({ success: false, message: 'Komentar tidak boleh kosong' });

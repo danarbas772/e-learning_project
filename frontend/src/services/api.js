@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -113,6 +113,8 @@ export const quizAPI = {
   addQuestion: (data) => api.post('/quizzes/questions', data),
   submit: (data) => api.post('/quizzes/submit', data),
   togglePublish: (id, is_published) => api.put(`/quizzes/${id}/publish`, { is_published }),
+  delete: (id) => api.delete(`/quizzes/${id}`),
+  getSubmissions: (id) => api.get(`/quizzes/${id}/submissions`),
 };
 
 export default api;

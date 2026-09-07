@@ -65,8 +65,22 @@ async function login(req, res) {
       return res.status(401).json({ success: false, message: 'Email atau password salah' });
     }
 
+    // Ambil Nama Lengkap dari elearning_users.profiles jika ada
+    let fullName = user.email;
+    try {
+      const [profs] = await pool.query(
+        'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+        [user.id]
+      );
+      if (profs.length > 0 && profs[0].full_name && profs[0].full_name.trim()) {
+        fullName = profs[0].full_name.trim();
+      }
+    } catch (e) {
+      console.warn('Could not fetch user profile on login:', e.message);
+    }
+
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, full_name: fullName },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -76,7 +90,7 @@ async function login(req, res) {
       message: 'Login berhasil',
       data: {
         token,
-        user: { id: user.id, email: user.email, role: user.role },
+        user: { id: user.id, email: user.email, role: user.role, full_name: fullName },
       },
     });
   } catch (err) {
@@ -96,6 +110,16 @@ async function verifyToken(req, res) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Ambil full_name terbaru dari profile jika belum ada
+    try {
+      const [profs] = await pool.query(
+        'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+        [decoded.id]
+      );
+      if (profs.length > 0 && profs[0].full_name && profs[0].full_name.trim()) {
+        decoded.full_name = profs[0].full_name.trim();
+      }
+    } catch (e) {}
     res.json({ success: true, data: decoded });
   } catch (err) {
     res.status(403).json({ success: false, message: 'Token tidak valid' });

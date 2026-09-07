@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import './TopBarClock.css';
 
 const DAYS_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -10,6 +11,7 @@ const MONTHS_ID = [
 
 export default function TopBarClock() {
   const [now, setNow] = useState(new Date());
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -29,6 +31,7 @@ export default function TopBarClock() {
 
   return (
     <div className="topbar-clock-container animate-fadeIn">
+      {/* Clock pill — center */}
       <div className="topbar-clock-pill">
         <div className="topbar-clock-item">
           <Calendar size={14} className="topbar-clock-icon calendar-icon" />
@@ -47,6 +50,27 @@ export default function TopBarClock() {
           </span>
         </div>
       </div>
+
+      {/* Theme toggle — right */}
+      <button
+        type="button"
+        className={`theme-toggle-btn ${theme === 'light' ? 'theme-toggle-light' : 'theme-toggle-dark'}`}
+        onClick={toggleTheme}
+        title={theme === 'dark' ? 'Aktifkan Mode Terang' : 'Aktifkan Mode Gelap'}
+        aria-label="Toggle tema"
+      >
+        {theme === 'dark' ? (
+          <>
+            <Sun size={15} className="theme-icon-sun" />
+            <span className="theme-toggle-label">Terang</span>
+          </>
+        ) : (
+          <>
+            <Moon size={15} className="theme-icon-moon" />
+            <span className="theme-toggle-label">Gelap</span>
+          </>
+        )}
+      </button>
     </div>
   );
 }

@@ -5,6 +5,7 @@
   align-items: center;
   padding: 14px 20px 6px;
   width: 100%;
+  position: relative;
 }
 
 .topbar-clock-pill {
@@ -93,19 +94,82 @@
   }
 }
 
+/* ─── Theme Toggle Button ───────────────────────── */
+.theme-toggle-btn {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  white-space: nowrap;
+}
+
+.theme-toggle-dark {
+  background: hsla(220, 20%, 14%, 0.7);
+  color: hsl(220, 15%, 85%);
+  border-color: hsla(220, 20%, 100%, 0.14);
+}
+
+.theme-toggle-dark:hover {
+  background: hsla(25, 90%, 52%, 0.15);
+  border-color: hsla(25, 90%, 52%, 0.45);
+  color: hsl(25, 90%, 72%);
+  box-shadow: 0 4px 18px hsla(25, 90%, 52%, 0.2);
+}
+
+.theme-toggle-light {
+  background: hsla(25, 80%, 96%, 0.85);
+  color: hsl(20, 15%, 20%);
+  border-color: hsla(25, 60%, 50%, 0.25);
+}
+
+.theme-toggle-light:hover {
+  background: hsla(220, 20%, 14%, 0.12);
+  border-color: hsla(250, 85%, 60%, 0.45);
+  color: hsl(250, 85%, 55%);
+  box-shadow: 0 4px 18px hsla(250, 85%, 60%, 0.15);
+}
+
+.theme-icon-sun {
+  color: hsl(38, 90%, 55%);
+}
+
+.theme-icon-moon {
+  color: hsl(250, 85%, 65%);
+}
+
 @media (max-width: 600px) {
   .topbar-clock-container {
     padding: 10px 12px 4px;
+    justify-content: flex-start;
   }
   .topbar-clock-pill {
     font-size: 0.75rem;
     gap: 8px;
     padding: 6px 12px;
-    max-width: 100%;
+    max-width: calc(100% - 80px);
     justify-content: center;
   }
   .topbar-clock-time {
     font-size: 0.82rem;
+  }
+  .theme-toggle-btn {
+    right: 10px;
+  }
+  .theme-toggle-label {
+    display: none;
   }
 }
 
@@ -120,5 +184,9 @@
   }
   .topbar-clock-divider {
     height: 12px;
+  }
+  .theme-toggle-btn {
+    right: 6px;
+    padding: 6px 8px;
   }
 }

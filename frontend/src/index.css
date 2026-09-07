@@ -75,6 +75,55 @@
   --container-max: 1280px;
 }
 
+/* ─── Light Theme Overrides ──────────────────────── */
+html.light-theme {
+  /* Primary Palette — Orange nuance for light */
+  --color-primary: hsl(25, 90%, 52%);
+  --color-primary-light: hsl(25, 90%, 65%);
+  --color-primary-dark: hsl(25, 90%, 40%);
+  --color-primary-glow: hsla(25, 90%, 52%, 0.25);
+
+  /* Accent */
+  --color-accent: hsl(200, 80%, 42%);
+  --color-accent-light: hsl(200, 80%, 55%);
+
+  /* Semantic Colors */
+  --color-success: hsl(142, 65%, 38%);
+  --color-warning: hsl(38, 90%, 48%);
+  --color-danger: hsl(0, 72%, 52%);
+  --color-info: hsl(205, 85%, 48%);
+
+  /* Light Backgrounds */
+  --bg-base: hsl(30, 30%, 97%);
+  --bg-surface: hsl(0, 0%, 100%);
+  --bg-card: hsl(30, 20%, 99%);
+  --bg-card-hover: hsl(30, 30%, 95%);
+  --bg-input: hsl(30, 15%, 96%);
+  --bg-overlay: hsla(30, 30%, 97%, 0.90);
+
+  /* Borders */
+  --border-subtle: hsla(25, 30%, 50%, 0.12);
+  --border-default: hsla(25, 30%, 50%, 0.22);
+  --border-focus: var(--color-primary);
+
+  /* Text */
+  --text-primary: hsl(20, 15%, 15%);
+  --text-secondary: hsl(20, 10%, 40%);
+  --text-muted: hsl(20, 8%, 58%);
+  --text-on-primary: hsl(0, 0%, 100%);
+
+  /* Glassmorphism */
+  --glass-bg: hsla(25, 60%, 50%, 0.06);
+  --glass-border: hsla(25, 60%, 50%, 0.14);
+  --glass-backdrop: blur(20px);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px hsla(25, 40%, 30%, 0.10);
+  --shadow-md: 0 4px 20px hsla(25, 40%, 30%, 0.12);
+  --shadow-lg: 0 12px 40px hsla(25, 40%, 30%, 0.16);
+  --shadow-primary: 0 8px 30px var(--color-primary-glow);
+}
+
 /* ─── Reset & Base ──────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -94,6 +143,7 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ─── Typography ─────────────────────────────────── */
@@ -531,4 +581,55 @@ body.sidebar-is-closed .main-content {
     padding: 9px 14px;
     font-size: 0.85rem;
   }
+}
+
+/* ─── Light Theme Component Overrides ───────────── */
+html.light-theme .topbar-clock-pill {
+  background: hsla(25, 80%, 96%, 0.85);
+  border-color: hsla(25, 60%, 50%, 0.2);
+  box-shadow: 0 4px 18px rgba(200, 100, 20, 0.08);
+}
+
+html.light-theme .topbar-clock-pill:hover {
+  border-color: hsla(25, 90%, 52%, 0.5);
+}
+
+html.light-theme .topbar-clock-time {
+  color: hsl(20, 15%, 15%);
+}
+
+html.light-theme .sidebar-overlay {
+  background: hsla(25, 20%, 10%, 0.55);
+}
+
+html.light-theme .sidebar-nav-item.active {
+  background: hsla(25, 90%, 52%, 0.12);
+  color: var(--color-primary-dark);
+}
+
+html.light-theme .sidebar-nav-indicator {
+  background: var(--color-primary);
+}
+
+html.light-theme .sidebar-nav-item:hover {
+  background: hsla(25, 60%, 50%, 0.08);
+  color: var(--color-primary-dark);
+}
+
+html.light-theme .sidebar-logout:hover {
+  color: var(--color-danger);
+  background: hsla(0, 72%, 52%, 0.08);
+}
+
+html.light-theme .sidebar-user-link:hover .sidebar-user {
+  background: hsla(25, 90%, 52%, 0.08);
+}
+
+html.light-theme .badge-primary {
+  background: hsla(25, 90%, 52%, 0.15);
+  color: var(--color-primary-dark);
+}
+
+html.light-theme * {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }

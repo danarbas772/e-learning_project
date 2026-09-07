@@ -106,11 +106,18 @@ export default function Sidebar() {
         >
           <div className="sidebar-user">
             <div className="sidebar-avatar">
-              {user?.email?.[0]?.toUpperCase() || 'U'}
+              {(user?.full_name || user?.email)?.[0]?.toUpperCase() || 'U'}
             </div>
             <div className="sidebar-user-info">
-              <p className="sidebar-user-email">{user?.email}</p>
-              <span className="badge badge-primary">
+              <p className="sidebar-user-name" style={{ fontWeight: 600, color: 'var(--text-primary)', margin: 0, fontSize: '0.88rem', lineHeight: 1.25 }}>
+                {user?.full_name || user?.email}
+              </p>
+              {user?.full_name && user?.full_name !== user?.email && (
+                <p className="sidebar-user-email" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: '2px 0 0 0', wordBreak: 'break-all' }}>
+                  {user?.email}
+                </p>
+              )}
+              <span className="badge badge-primary" style={{ marginTop: '4px', alignSelf: 'flex-start' }}>
                 {roleLabel[user?.role] || user?.role}
               </span>
             </div>

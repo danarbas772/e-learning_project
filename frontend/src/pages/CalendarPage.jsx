@@ -130,7 +130,7 @@ export default function CalendarPage() {
       <main className="main-content dashboard-content">
         <TopBarClock />
         <div className="container calendar-page-container">
-          
+
           {/* Header */}
           <div className="page-header animate-fadeIn">
             <div>

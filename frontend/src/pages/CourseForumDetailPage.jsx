@@ -4,6 +4,8 @@ import { courseAPI, quizAPI, userAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import ConfirmModal from '../components/ConfirmModal';
+import CreateQuizModal from '../components/CreateQuizModal';
+import ExamTakingModal from '../components/ExamTakingModal';
 import Footer from '../components/Footer';
 import {
   BookOpen, MessageSquare, Upload, FileText, Send, Trash2,
@@ -50,6 +52,7 @@ export default function CourseForumDetailPage() {
   const [quizAnswers, setQuizAnswers] = useState({});
   const [quizResult, setQuizResult] = useState(null);
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
+  const [showCreateQuizModal, setShowCreateQuizModal] = useState(false);
 
   // Access control state
   const [accessDenied, setAccessDenied] = useState(false);
@@ -300,41 +303,28 @@ export default function CourseForumDetailPage() {
   };
 
   // Buka Ujian / Quiz (Untuk Mahasiswa / Semua Role)
-  const handleOpenQuizModal = async (quiz) => {
+  const handleOpenQuizModal = (quiz) => {
     setActiveQuizModal(quiz);
-    setQuizResult(null);
-    setQuizAnswers({});
-    try {
-      const res = await quizAPI.getById(quiz.id);
-      setQuizDetails(res.data.data);
-    } catch (err) {
-      showToast('error', 'Gagal memuat soal ujian');
-    }
   };
 
-  // Submit Jawaban Ujian
-  const handleSubmitQuiz = async (e) => {
-    e.preventDefault();
-    if (!quizDetails || !quizDetails.questions) return;
-
-    const answersPayload = quizDetails.questions.map((q) => ({
-      question_id: q.id,
-      selected_option_id: quizAnswers[q.id] || null,
-    }));
-
-    setSubmittingQuiz(true);
-    try {
-      const res = await quizAPI.submit({
-        quiz_id: quizDetails.id,
-        answers: answersPayload,
-      });
-      setQuizResult(res.data.data);
-      showToast('success', 'Ujian berhasil diselesaikan!');
-    } catch (err) {
-      showToast('error', 'Gagal mengumpulkan lembar jawaban ujian');
-    } finally {
-      setSubmittingQuiz(false);
-    }
+  // Hapus Quiz / Ujian (Dosen / Admin)
+  const handleDeleteQuiz = (quizId) => {
+    setConfirmDelete({
+      isOpen: true,
+      title: 'Hapus Kuis / Ujian',
+      message: 'Apakah Anda yakin ingin menghapus kuis/ujian ini? Seluruh data pertanyaan dan nilai peserta akan terhapus permanen.',
+      onConfirm: async () => {
+        try {
+          await quizAPI.delete(quizId);
+          fetchCourseData();
+          showToast('success', 'Kuis/Ujian berhasil dihapus');
+        } catch (err) {
+          showToast('error', 'Gagal menghapus kuis/ujian');
+        } finally {
+          setConfirmDelete((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -527,33 +517,145 @@ export default function CourseForumDetailPage() {
                   {/* UJIAN TENGAH SEMESTER (UTS) - Ditampilkan Tepat di Pertengahan Pertemuan */}
                   {isMidtermPosition && (
                     <div className="midterm-exam-card animate-fadeIn">
-                      <div>
-                        <span className="midterm-badge">
-                          <HelpCircle size={14} /> EVALUASI TENGAH SEMESTER
-                        </span>
-                        <h3 className="midterm-title">Ujian Tengah Semester (UTS) / Kuis Evaluasi</h3>
-                        <p className="midterm-desc">
-                          Sesi kuis dan ujian evaluasi pembelajaran mahasiswa untuk pertemuan I sampai {section.title}.
-                        </p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px', width: '100%' }}>
+                        <div>
+                          <span className="midterm-badge">
+                            <HelpCircle size={14} /> EVALUASI TENGAH SEMESTER
+                          </span>
+                          <h3 className="midterm-title">Ujian Tengah Semester (UTS) / Kuis Evaluasi</h3>
+                          <p className="midterm-desc">
+                            Sesi kuis dan ujian evaluasi pembelajaran mahasiswa untuk pertemuan I sampai {section.title}.
+                          </p>
+                        </div>
+
+                        {isPrivileged && (
+                          <button
+                            type="button"
+                            onClick={() => setShowCreateQuizModal(true)}
+                            className="btn btn-primary"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+                          >
+                            <Plus size={16} /> Buat Ujian UTS / Kuis
+                          </button>
+                        )}
                       </div>
 
-                      <div>
+                      <div style={{ marginTop: '16px', width: '100%' }}>
                         {quizzes.length > 0 ? (
-                          quizzes.map((quiz) => (
-                            <button
-                              key={quiz.id}
-                              onClick={() => handleOpenQuizModal(quiz)}
-                              className="btn btn-primary"
-                              style={{ fontWeight: 'bold' }}
-                            >
-                              Masuk Ujian: {quiz.title}
-                            </button>
-                          ))
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {quizzes.map((quiz) => (
+                              <div
+                                key={quiz.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '14px 18px',
+                                  background: 'hsla(220, 20%, 12%, 0.7)',
+                                  border: '1px solid var(--border-subtle)',
+                                  borderRadius: 'var(--radius-md)',
+                                  gap: '12px',
+                                  flexWrap: 'wrap'
+                                }}
+                              >
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <strong style={{ color: 'var(--text-primary)', fontSize: '1rem' }}>{quiz.title}</strong>
+                                    <span className="exam-type-tag" style={{ fontSize: '0.7rem' }}>
+                                      {quiz.quiz_type === 'essay' ? 'ESSAY' : quiz.quiz_type === 'mixed' ? 'CAMPURAN' : 'PILIHAN GANDA'}
+                                    </span>
+                                    {quiz.time_limit_minutes > 0 && (
+                                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                        <Clock size={12} /> {quiz.time_limit_minutes} Menit
+                                      </span>
+                                    )}
+                                    {quiz.question_count !== undefined && (
+                                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                        • {quiz.question_count} Soal
+                                      </span>
+                                    )}
+                                  </div>
+                                  {quiz.description && (
+                                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                                      {quiz.description}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  {(() => {
+                                    const now = new Date();
+                                    const hasAttempted = (quiz.my_attempt_count > 0);
+                                    const isNotStarted = quiz.start_time && new Date(quiz.start_time) > now;
+                                    const isEnded = quiz.end_time && new Date(quiz.end_time) < now;
+
+                                    if (hasAttempted) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenQuizModal(quiz)}
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ borderColor: 'hsla(160, 80%, 45%, 0.4)', color: 'hsl(160, 80%, 75%)', fontWeight: 600 }}
+                                        >
+                                          <CheckCircle2 size={14} /> Selesai ({quiz.my_score !== null ? `${quiz.my_score}/100` : 'Terkumpul'})
+                                        </button>
+                                      );
+                                    }
+                                    if (!isPrivileged && isNotStarted) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenQuizModal(quiz)}
+                                          className="btn btn-secondary btn-sm"
+                                          style={{ borderColor: 'hsla(38, 90%, 52%, 0.4)', color: 'hsl(38, 90%, 65%)', fontWeight: 600 }}
+                                        >
+                                          <Lock size={14} /> Terkunci (Lihat Jadwal)
+                                        </button>
+                                      );
+                                    }
+                                    if (!isPrivileged && isEnded) {
+                                      return (
+                                        <button
+                                          type="button"
+                                          className="btn btn-ghost btn-sm"
+                                          disabled
+                                          style={{ opacity: 0.6 }}
+                                        >
+                                          <AlertCircle size={14} /> Ujian Berakhir
+                                        </button>
+                                      );
+                                    }
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenQuizModal(quiz)}
+                                        className="btn btn-primary btn-sm"
+                                        style={{ fontWeight: 'bold' }}
+                                      >
+                                        {isPrivileged ? 'Pratinjau / Kerjakan' : 'Masuk Ujian'}
+                                      </button>
+                                    );
+                                  })()}
+                                  {isPrivileged && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteQuiz(quiz.id)}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ color: 'hsl(0, 75%, 65%)' }}
+                                      title="Hapus Ujian"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         ) : (
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
                             {isPrivileged
-                              ? 'Dosen/Admin dapat membuat kuis untuk jadwal UTS ini.'
-                              : 'Soal UTS akan dibuka saat jadwal pertemuan berlangsung.'}
+                              ? 'Klik tombol "+ Buat Ujian UTS / Kuis" di atas untuk membuat naskah soal (Pilihan Ganda / Essay, jadwal, atau via import Excel).'
+                              : 'Soal UTS akan dibuka saat jadwal evaluasi berlangsung.'}
                           </div>
                         )}
                       </div>
@@ -965,103 +1067,23 @@ export default function CourseForumDetailPage() {
           </div>
         )}
 
-        {/* ─── MODAL UJIAN / QUIZ (UNTUK MAHASISWA & DOSEN) ──────────────── */}
-        {activeQuizModal && quizDetails && (
-          <div className="forum-modal-backdrop">
-            <div className="forum-modal-content" style={{ maxWidth: '720px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div>
-                  <h3 style={{ margin: 0 }}>{quizDetails.title}</h3>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                    {quizDetails.description || 'Evaluasi Pembelajaran'}
-                  </p>
-                </div>
-                <button onClick={() => setActiveQuizModal(null)} className="btn btn-ghost btn-sm">
-                  <X size={18} />
-                </button>
-              </div>
+        {/* ─── MODAL PENGERJAAN UJIAN MAHASISWA (LOCK, BRIEFING, COUNTDOWN, ANTI-EXIT) ──────────────── */}
+        <ExamTakingModal
+          quiz={activeQuizModal}
+          isOpen={Boolean(activeQuizModal)}
+          onClose={() => setActiveQuizModal(null)}
+          onComplete={fetchCourseData}
+          isPrivileged={isPrivileged}
+        />
 
-              {quizResult ? (
-                <div style={{ textAlign: 'center', padding: '24px 10px' }} className="animate-fadeIn">
-                  <div style={{ fontSize: '3rem', marginBottom: '12px' }}>
-                    {quizResult.is_passed ? '🎉' : '📝'}
-                  </div>
-                  <h2>Skor Ujian: {quizResult.score} / 100</h2>
-                  <p style={{ color: quizResult.is_passed ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 600 }}>
-                    {quizResult.message}
-                  </p>
-                  <button
-                    onClick={() => setActiveQuizModal(null)}
-                    className="btn btn-primary"
-                    style={{ marginTop: '16px' }}
-                  >
-                    Tutup Lembar Ujian
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmitQuiz}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', margin: '20px 0' }}>
-                    {quizDetails.questions?.map((q, qIdx) => (
-                      <div
-                        key={q.id}
-                        style={{
-                          padding: '16px',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'var(--bg-surface)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                          {qIdx + 1}. {q.question_text}
-                        </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {q.options?.map((opt) => (
-                            <label
-                              key={opt.id}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                fontSize: '0.9rem',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <input
-                                type="radio"
-                                name={`question_${q.id}`}
-                                value={opt.id}
-                                checked={quizAnswers[q.id] === opt.id}
-                                onChange={() =>
-                                  setQuizAnswers({ ...quizAnswers, [q.id]: opt.id })
-                                }
-                                required
-                              />
-                              <span>{opt.option_text}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setActiveQuizModal(null)}
-                      className="btn btn-secondary"
-                    >
-                      Batal
-                    </button>
-                    <button type="submit" className="btn btn-primary" disabled={submittingQuiz}>
-                      {submittingQuiz ? 'Mengumpulkan...' : 'Kumpulkan Jawaban'}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Modal Buat Ujian & Kuis Baru */}
+        <CreateQuizModal
+          isOpen={showCreateQuizModal}
+          onClose={() => setShowCreateQuizModal(false)}
+          onSuccess={fetchCourseData}
+          initialCourseId={id}
+          courseTitle={course?.title}
+        />
 
         {/* Modal Konfirmasi Hapus Modern */}
         <ConfirmModal

@@ -233,18 +233,6 @@
 .sidebar-user-link {
   text-decoration: none;
   display: block;
-  transition: all var(--transition-fast);
-}
-
-.sidebar-user-link:hover .sidebar-user {
-  background: hsla(250, 85%, 60%, 0.12);
-  border-radius: var(--radius-md);
-  margin: 0 10px;
-  padding: 12px 14px;
-}
-
-.sidebar-user-link:hover .sidebar-avatar {
-  box-shadow: 0 0 12px hsla(250, 85%, 60%, 0.35);
 }
 
 /* ─── Desktop (≥769px): Sidebar selalu terbuka permanen, tanpa tombol toggle ─── */

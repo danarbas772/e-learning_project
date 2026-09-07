@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authAPI } from '../services/api';
+import { authAPI, userAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -47,7 +47,20 @@ export function AuthProvider({ children }) {
     if (isValid) {
       setToken(localStorage.getItem('token'));
       try {
-        setUser(JSON.parse(localStorage.getItem('user')));
+        const parsed = JSON.parse(localStorage.getItem('user'));
+        setUser(parsed);
+
+        // Ambil profil full_name jika belum ada di session tersimpan
+        if (parsed?.id && (!parsed.full_name || parsed.full_name === parsed.email)) {
+          userAPI.getProfile(parsed.id).then((res) => {
+            const prof = res.data?.data;
+            if (prof?.full_name) {
+              const updated = { ...parsed, full_name: prof.full_name };
+              setUser(updated);
+              localStorage.setItem('user', JSON.stringify(updated));
+            }
+          }).catch(() => {});
+        }
       } catch (e) {
         logout();
       }
@@ -78,13 +91,24 @@ export function AuthProvider({ children }) {
     const { token: newToken, user: newUser } = res.data.data;
     const now = Date.now();
 
+    // Jika full_name belum terisi dari auth, ambil dari profil
+    let enrichedUser = { ...newUser };
+    if (!enrichedUser.full_name || enrichedUser.full_name === enrichedUser.email) {
+      try {
+        const profRes = await userAPI.getProfile(enrichedUser.id);
+        if (profRes.data?.data?.full_name) {
+          enrichedUser.full_name = profRes.data.data.full_name;
+        }
+      } catch (e) {}
+    }
+
     setToken(newToken);
-    setUser(newUser);
+    setUser(enrichedUser);
     localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+    localStorage.setItem('user', JSON.stringify(enrichedUser));
     localStorage.setItem('login_time', now.toString());
     sessionStorage.removeItem('session_message');
-    return newUser;
+    return enrichedUser;
   };
 
   const isAdmin = user?.role === 'admin';

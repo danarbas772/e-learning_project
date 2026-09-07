@@ -1,7 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { createQuiz, getQuizzesByCourse, getQuizById, addQuestion, submitQuiz, getMyAttempts, togglePublish, getAllQuizzes } = require('../controllers/quizController');
+const {
+  createQuiz,
+  getQuizzesByCourse,
+  getQuizById,
+  submitQuiz,
+  getMyAttempts,
+  togglePublish,
+  deleteQuiz,
+  getAllQuizzes,
+  getQuizSubmissions
+} = require('../controllers/quizController');
 
 function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
@@ -16,21 +26,22 @@ function auth(req, res, next) {
 
 function instructorOrAdmin(req, res, next) {
   if (!['instructor', 'admin'].includes(req.user?.role)) {
-    return res.status(403).json({ success: false, message: 'Hanya instructor atau admin' });
+    return res.status(403).json({ success: false, message: 'Hanya instructor atau admin yang diizinkan' });
   }
   next();
 }
 
-// Public - dengan auth
+// Public with Auth
 router.get('/', auth, getAllQuizzes);
 router.get('/course/:courseId', auth, getQuizzesByCourse);
 router.get('/:id', auth, getQuizById);
 router.get('/:quizId/my-attempts', auth, getMyAttempts);
 router.post('/submit', auth, submitQuiz);
 
-// Instructor/Admin
+// Instructor / Admin Only
 router.post('/', auth, instructorOrAdmin, createQuiz);
-router.post('/questions', auth, instructorOrAdmin, addQuestion);
 router.put('/:id/publish', auth, instructorOrAdmin, togglePublish);
+router.delete('/:id', auth, instructorOrAdmin, deleteQuiz);
+router.get('/:id/submissions', auth, instructorOrAdmin, getQuizSubmissions);
 
 module.exports = router;
