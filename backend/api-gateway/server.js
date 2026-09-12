@@ -1,88 +1,64 @@
-require('dotenv').config();
+// backend/api-gateway/server.js
+// Catatan: Sesuai refactoring Modular Monolith, reverse-proxy HTTP antar-service
+// telah digantikan oleh in-memory router mounting pada backend/server.js.
+// File ini dipertahankan untuk backward-compatibility jika dijalankan langsung.
+
+require('dotenv').config({ path: '../.env' });
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+
+// In-memory routers dari services
+const authRoutes = require('../services/auth-service/routes/authRoutes');
+const userRoutes = require('../services/user-service/routes/userRoutes');
+const courseRoutes = require('../services/course-service/routes/courseRoutes');
+const enrollmentRoutes = require('../services/enrollment-service/routes/enrollmentRoutes');
+const quizRoutes = require('../services/quiz-service/routes/quizRoutes');
+const { errorHandler, notFound } = require('../shared/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
 }));
 app.use(morgan('dev'));
-// Note: express.json() should NOT be used in API Gateway before proxy middleware
-// because it consumes the request body stream and causes proxied POST/PUT requests to hang.
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Rate Limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 menit
-  max: 200,
+  windowMs: 15 * 60 * 1000,
+  max: 300,
   message: { success: false, message: 'Terlalu banyak request, coba lagi nanti.' },
 });
 app.use(limiter);
 
-// ─── Health Check ────────────────────────────────────────────────────────────
+// Health Check
 app.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'API Gateway berjalan',
+    message: 'API Gateway (In-Memory Routing) berjalan',
     timestamp: new Date().toISOString(),
-    services: {
-      auth: process.env.AUTH_SERVICE_URL || 'http://localhost:5001',
-      user: process.env.USER_SERVICE_URL || 'http://localhost:5002',
-      course: process.env.COURSE_SERVICE_URL || 'http://localhost:5003',
-      enrollment: process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:5004',
-      quiz: process.env.QUIZ_SERVICE_URL || 'http://localhost:5005',
-    },
+    mode: 'in-memory-modular',
   });
 });
 
-// ─── Proxy Routes ─────────────────────────────────────────────────────────────
-const proxyOptions = (target) => ({
-  target,
-  changeOrigin: true,
-  on: {
-    error: (err, req, res) => {
-      console.error(`[Proxy Error] ${target}:`, err.message);
-      res.status(503).json({ success: false, message: `Service tidak tersedia: ${target}` });
-    },
-  },
-});
+// In-Memory Routes (Tanpa Reverse Proxy HTTP)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/courses', courseRoutes);
+app.use('/api/enrollments', enrollmentRoutes);
+app.use('/api/quizzes', quizRoutes);
 
-// Auth Service → /api/auth/*
-app.use('/api/auth', createProxyMiddleware(proxyOptions(
-  process.env.AUTH_SERVICE_URL || 'http://localhost:5001'
-)));
+app.use(notFound);
+app.use(errorHandler);
 
-// User Service → /api/users/*
-app.use('/api/users', createProxyMiddleware(proxyOptions(
-  process.env.USER_SERVICE_URL || 'http://localhost:5002'
-)));
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 API Gateway (In-Memory) berjalan di http://localhost:${PORT}`);
+  });
+}
 
-// Course Service → /api/courses/*
-app.use('/api/courses', createProxyMiddleware(proxyOptions(
-  process.env.COURSE_SERVICE_URL || 'http://localhost:5003'
-)));
-
-// Enrollment Service → /api/enrollments/*
-app.use('/api/enrollments', createProxyMiddleware(proxyOptions(
-  process.env.ENROLLMENT_SERVICE_URL || 'http://localhost:5004'
-)));
-
-// Quiz Service → /api/quizzes/*
-app.use('/api/quizzes', createProxyMiddleware(proxyOptions(
-  process.env.QUIZ_SERVICE_URL || 'http://localhost:5005'
-)));
-
-// ─── 404 ─────────────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route tidak ditemukan: ${req.method} ${req.originalUrl}` });
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 API Gateway berjalan di http://localhost:${PORT}`);
-});
+module.exports = app;

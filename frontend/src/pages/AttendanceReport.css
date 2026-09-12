@@ -1,0 +1,305 @@
+/* =========================================================
+   Attendance Report Page Styles
+   Bas Learning Aesthetics
+   ========================================================= */
+
+.attendance-page-container {
+  padding-bottom: 2.5rem;
+}
+
+.attendance-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.attendance-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2));
+  color: var(--color-primary-light, #818cf8);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+}
+
+.btn-export-excel {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  border: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-export-excel:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+  filter: brightness(1.08);
+}
+
+.btn-export-excel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Filter Card */
+.attendance-filter-card {
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+  border-radius: 16px;
+}
+
+.attendance-controls-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 1.25rem;
+  align-items: flex-end;
+}
+
+@media (max-width: 768px) {
+  .attendance-controls-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.control-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  margin-bottom: 0.45rem;
+}
+
+.attendance-course-select {
+  width: 100%;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.65rem 1rem;
+}
+
+.course-meta-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-surface-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.07));
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.meta-label {
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+
+.meta-val {
+  color: var(--text-primary, #f1f5f9);
+  font-weight: 600;
+}
+
+/* Table Card */
+.attendance-table-card {
+  border-radius: 16px;
+  padding: 1.25rem;
+  overflow: hidden;
+}
+
+.table-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.attendance-matrix-wrapper {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  max-width: 100%;
+}
+
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.attendance-table thead tr {
+  background: var(--bg-surface-3, rgba(255, 255, 255, 0.05));
+}
+
+.attendance-table th {
+  padding: 0.85rem 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 2px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  white-space: nowrap;
+}
+
+.attendance-table td {
+  padding: 0.8rem 0.75rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  vertical-align: middle;
+}
+
+.attendance-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+/* Sesi Th Titles */
+.th-session-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary, #f1f5f9);
+  margin-bottom: 4px;
+}
+
+.badge-active-tag {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.badge-closed-tag {
+  display: inline-block;
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Cells */
+.year-pill {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818cf8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.attendance-cell-present {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.icon-present {
+  color: #10b981;
+}
+
+.cell-time {
+  font-size: 0.68rem;
+  color: var(--text-muted, #64748b);
+  font-family: monospace;
+}
+
+.attendance-cell-absent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-absent {
+  color: var(--text-muted, #64748b);
+  font-weight: 700;
+  opacity: 0.4;
+}
+
+.total-attended-badge {
+  display: inline-block;
+  background: var(--bg-surface-2, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.percentage-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.pct-high {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.pct-mid {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.pct-low {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.empty-attendance-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted, #64748b);
+}
+
+.empty-attendance-box h4 {
+  color: var(--text-primary, #f1f5f9);
+  margin-top: 0.5rem;
+  margin-bottom: 0.4rem;
+}

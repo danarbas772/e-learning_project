@@ -44,7 +44,7 @@ export default function RegisterPage() {
           <div className="auth-brand-icon">
             <GraduationCap size={28} />
           </div>
-          <h1 className="auth-brand-name">EduSpace</h1>
+          <h1 className="auth-brand-name">Bas Learning</h1>
         </div>
 
         <div className="auth-card glass-card">

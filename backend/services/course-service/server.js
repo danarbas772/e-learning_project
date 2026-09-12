@@ -6,37 +6,42 @@ const fs = require('fs');
 const pool = require('./config/db');
 const courseRoutes = require('./routes/courseRoutes');
 
-const app = express();
-const PORT = process.env.PORT || 5003;
-
 // Buat folder uploads jika belum ada
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
-app.use(cors());
-app.use(express.json());
+// Standalone execution check (hanya dijalankan jika file ini dieksekusi langsung)
+if (require.main === module) {
+  const app = express();
+  const PORT = process.env.PORT || 5003;
 
-// Serve file statis (untuk preview langsung di browser)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+  app.use(cors());
+  app.use(express.json());
 
-// Health check
-app.get('/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-    res.json({ success: true, service: 'course-service', status: 'UP', db: 'connected' });
-  } catch {
-    res.status(503).json({ success: false, service: 'course-service', status: 'DOWN', db: 'disconnected' });
-  }
-});
+  // Serve file statis
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
-app.use('/api/courses', courseRoutes);
+  // Health check
+  app.get('/health', async (req, res) => {
+    try {
+      await pool.query('SELECT 1');
+      res.json({ success: true, service: 'course-service', status: 'UP', db: 'connected' });
+    } catch {
+      res.status(503).json({ success: false, service: 'course-service', status: 'DOWN', db: 'disconnected' });
+    }
+  });
 
-// 404
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route tidak ditemukan' });
-});
+  // Routes
+  app.use('/api/courses', courseRoutes);
 
-app.listen(PORT, () => {
-  console.log(`📚 Course Service berjalan di http://localhost:${PORT}`);
-});
+  // 404
+  app.use((req, res) => {
+    res.status(404).json({ success: false, message: 'Route tidak ditemukan' });
+  });
+
+  app.listen(PORT, () => {
+    console.log(`📚 Course Service berjalan di http://localhost:${PORT}`);
+  });
+}
+
+module.exports = courseRoutes;

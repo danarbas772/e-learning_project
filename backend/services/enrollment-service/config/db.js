@@ -6,7 +6,7 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'elearning_enrollments',
+  database: process.env.DB_NAME_ENROLLMENT || process.env.ENROLLMENT_DB_NAME || process.env.DB_NAME || 'elearning_enrollments',
   waitForConnections: true,
   connectionLimit: 10,
 });

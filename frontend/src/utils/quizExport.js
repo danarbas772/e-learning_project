@@ -49,14 +49,16 @@ export function exportQuizParticipantsToExcel(quiz, submissionsData) {
       }
     };
 
+    const hasScore = att.score !== null && att.score !== undefined;
+
     return {
       'No': idx + 1,
       'Nama Mahasiswa': att.student_name || 'Tanpa Nama',
       'NIM / NIP': att.nim || '-',
       'Email': att.email || '-',
-      'Nilai Akhir (0-100)': Number(att.score) || 0,
+      'Nilai Akhir (0-100)': hasScore ? Number(att.score) : 'Menunggu Penilaian (Esai)',
       'KKM Minimal': `${passingScore}%`,
-      'Status': att.is_passed ? 'LULUS' : 'REMEDIAL',
+      'Status': hasScore ? (att.is_passed ? 'LULUS' : 'REMEDIAL') : 'Terkumpul (Perlu Penilaian)',
       'Waktu Mulai': formatDateTime(att.started_at),
       'Waktu Submit': formatDateTime(att.submitted_at),
       'Durasi Pengerjaan': durationStr,

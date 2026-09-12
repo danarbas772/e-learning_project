@@ -12,6 +12,7 @@ import ImportExcelPage from './pages/ImportExcelPage';
 import ProfilePage from './pages/ProfilePage';
 import ExamsPage from './pages/ExamsPage';
 import CalendarPage from './pages/CalendarPage';
+import AttendanceReportPage from './pages/AttendanceReportPage';
 
 export default function App() {
   return (
@@ -49,7 +50,7 @@ export default function App() {
             }
           />
           <Route
-            path="/courses/:id"
+            path="/courses/:slug"
             element={
               <ProtectedRoute>
                 <CourseForumDetailPage />
@@ -61,6 +62,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ExamsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/attendance"
+            element={
+              <ProtectedRoute roles={['admin', 'instructor']}>
+                <AttendanceReportPage />
               </ProtectedRoute>
             }
           />

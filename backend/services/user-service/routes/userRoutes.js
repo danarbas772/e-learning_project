@@ -5,9 +5,13 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const { getProfile, updateProfile, getAllProfiles, createUser, updateUserAdmin, deleteUser, getAdminUserStats, importFromExcel, downloadTemplate } = require('../controllers/userController');
 
+const fs = require('fs');
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
 // Multer setup untuk upload Excel
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
+  destination: (req, file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => cb(null, `excel-${Date.now()}${path.extname(file.originalname)}`),
 });
 const uploadExcel = multer({

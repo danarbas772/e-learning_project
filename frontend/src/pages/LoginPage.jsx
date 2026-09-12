@@ -25,12 +25,13 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSessionNotice('');
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login gagal. Periksa email dan password Anda.');
+      setError(err.response?.data?.message || 'Email atau password salah');
     } finally {
       setLoading(false);
     }
@@ -48,7 +49,7 @@ export default function LoginPage() {
           <div className="auth-brand-icon">
             <GraduationCap size={28} />
           </div>
-          <h1 className="auth-brand-name">EduSpace</h1>
+          <h1 className="auth-brand-name">Bas Learning</h1>
         </div>
 
         {/* Card */}

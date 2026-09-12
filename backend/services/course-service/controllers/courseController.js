@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 
+const USER_DB = process.env.DB_NAME_USER || process.env.USER_DB_NAME || process.env.DB_NAME || 'elearning_users';
+
 // ─── COURSES ──────────────────────────────────────────────────────────────────
 
 async function getAllCourses(req, res) {
@@ -35,11 +37,24 @@ async function getAllCourses(req, res) {
     params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  // Filter akses untuk role student DAN instructor (non-admin):
-  // (1) Pembuat matkul (instructor_id) selalu bisa akses course-nya sendiri
-  // (2) Matkul tanpa aturan akses (publik) → bisa diakses semua
-  // (3) Matkul dengan aturan akses → hanya yang cocok (ID, Angkatan, atau Nama)
-  if (user_role === 'student' || user_role === 'instructor') {
+  // Filter akses berdasarkan role (admin melihat semua):
+  // (A) Role Instructor (Dosen): HANYA dapat melihat mata kuliah miliknya sendiri (sesuai dosen pengampu yang dipilih)
+  // (B) Role Student (Mahasiswa):
+  //     (1) Matkul tanpa aturan akses (publik) → bisa diakses mahasiswa aktif
+  //     (2) Matkul dengan aturan akses → hanya mahasiswa yang cocok (ID, Angkatan, atau Nama)
+  if (user_role === 'instructor') {
+    let currentUserId = user_id;
+    if (!currentUserId && req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'elearning_secret_key_2024');
+        currentUserId = decoded.id;
+      } catch (e) { }
+    }
+    const instructorId = currentUserId ? parseInt(currentUserId, 10) : -1;
+    query += ' AND instructor_id = ?';
+    params.push(instructorId);
+  } else if (user_role === 'student') {
     let currentUserId = user_id;
     if (!currentUserId && req.headers.authorization) {
       try {
@@ -53,24 +68,20 @@ async function getAllCourses(req, res) {
     const sYear = user_academic_year ? String(user_academic_year).trim() : '';
     const sName = user_name ? String(user_name).trim() : '';
 
-    query += ` AND (
-      instructor_id = ?
-      OR NOT EXISTS (SELECT 1 FROM course_access_rules WHERE course_id = courses.id)
-      OR EXISTS (
-        SELECT 1 FROM course_access_rules
-        WHERE course_id = courses.id
-          AND (
-            (user_id IS NOT NULL AND user_id = ?)
-            OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
-            OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
-              LOWER(full_name) = LOWER(?)
-              OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
-            ))
-          )
-      )
+    // Jika matkul tidak memiliki aturan akses sama sekali, mahasiswa tidak diberi akses (harus diberi izin spesifik)
+    query += ` AND EXISTS (
+      SELECT 1 FROM course_access_rules
+      WHERE course_id = courses.id
+        AND (
+          (user_id IS NOT NULL AND user_id = ?)
+          OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
+          OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
+            LOWER(full_name) = LOWER(?)
+            OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
+          ))
+        )
     )`;
     params.push(
-      sId,
       sId,
       sYear, sYear,
       sName, sName, sName
@@ -105,18 +116,93 @@ async function getAdminCourseStats(req, res) {
 }
 
 async function getMyCourses(req, res) {
-  // Untuk instructor: lihat semua kursus yang dibuat
+  // Untuk instructor: lihat semua kursus yang dibuat/diampu
   const instructorId = req.user.id;
   try {
-    const [rows] = await pool.query(
+    const [courses] = await pool.query(
       'SELECT * FROM courses WHERE instructor_id = ? ORDER BY created_at DESC',
       [instructorId]
     );
-    res.json({ success: true, data: rows });
+
+    if (courses.length === 0) {
+      return res.json({ success: true, data: [], total_students: 0 });
+    }
+
+    const courseIds = courses.map(c => c.id);
+
+    // Ambil seluruh aturan akses untuk mata kuliah dosen ini
+    const [rules] = await pool.query(
+      'SELECT course_id, user_id, full_name, nim_nip, academic_year, rule_type FROM course_access_rules WHERE course_id IN (?)',
+      [courseIds]
+    );
+
+    // Ambil seluruh data profil mahasiswa terdaftar
+    let students = [];
+    try {
+      const [stuRows] = await pool.query(
+        `SELECT user_id, full_name, nim_nip, academic_year, semester 
+         FROM ${USER_DB}.profiles 
+         WHERE role = 'student'`
+      );
+      students = stuRows;
+    } catch (e) {
+      console.warn('Could not query profiles from USER_DB:', e.message);
+    }
+
+    // Set mahasiswa unik yang diajarkan oleh dosen ini di seluruh matkulnya
+    const allAllowedStudentIds = new Set();
+
+    for (const course of courses) {
+      const cRules = rules.filter(r => r.course_id === course.id);
+      const courseStudentIds = new Set();
+
+      if (cRules.length === 0) {
+        // Jika belum ada akses sama sekali, mahasiswa tidak diberi akses (0 mahasiswa)
+        course.enrolled_count = 0;
+      } else {
+        students.forEach(st => {
+          const hasAccess = cRules.some(rule => {
+            if (rule.user_id && Number(rule.user_id) === Number(st.user_id)) return true;
+            if (rule.rule_type === 'year' && rule.academic_year && st.academic_year &&
+              String(rule.academic_year).trim() === String(st.academic_year).trim()) return true;
+            if ((rule.rule_type === 'name' || rule.rule_type === 'student') && !rule.user_id && rule.full_name && st.full_name) {
+              const rName = rule.full_name.toLowerCase().trim();
+              const uName = st.full_name.toLowerCase().trim();
+              if (rName === uName || rName.includes(uName)) return true;
+            }
+            return false;
+          });
+
+          if (hasAccess) {
+            courseStudentIds.add(st.user_id);
+            allAllowedStudentIds.add(st.user_id);
+          }
+        });
+        course.enrolled_count = courseStudentIds.size;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: courses,
+      total_students: allAllowedStudentIds.size,
+    });
   } catch (err) {
     console.error('Get my courses error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
+}
+
+// Helper: convert title to URL slug
+function toSlug(str) {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
 }
 
 async function getCourseById(req, res) {
@@ -133,40 +219,72 @@ async function getCourseById(req, res) {
   }
 
   try {
-    const [courses] = await pool.query('SELECT * FROM courses WHERE id = ?', [id]);
-    if (courses.length === 0) {
+    let courses;
+    // Jika param berupa angka, cari by ID; jika slug, cari by slug dari title
+    if (/^\d+$/.test(id)) {
+      [courses] = await pool.query('SELECT * FROM courses WHERE id = ?', [id]);
+    } else {
+      // Slug lookup: ambil semua lalu cocokkan slug dari title
+      const [allCourses] = await pool.query('SELECT * FROM courses');
+      courses = allCourses.filter(c => toSlug(c.title || '') === id);
+    }
+    if (!courses || courses.length === 0) {
       return res.status(404).json({ success: false, message: 'Mata kuliah tidak ditemukan' });
     }
 
-    // Cek aturan akses jika student atau instructor
-    if (user_role === 'student' || user_role === 'instructor') {
-      // Pembuat matkul selalu punya akses
-      const isCreator = Number(courses[0].instructor_id) === Number(studentUserId);
-      if (!isCreator) {
-        const [rules] = await pool.query('SELECT * FROM course_access_rules WHERE course_id = ?', [id]);
-        if (rules.length > 0) {
-          const hasAccess = rules.some((rule) => {
-            // 1. Cocokkan ID user (student atau instructor)
-            if (rule.user_id && studentUserId && Number(rule.user_id) === Number(studentUserId)) return true;
-            // 2. Cocokkan Angkatan (hanya rule_type = 'year')
-            if (rule.rule_type === 'year' && rule.academic_year && user_academic_year &&
-              String(rule.academic_year).trim() === String(user_academic_year).trim()) return true;
-            // 3. Cocokkan Nama (hanya rule_type = 'name' atau 'student' tanpa user_id)
-            if ((rule.rule_type === 'name' || rule.rule_type === 'student') && !rule.user_id && user_name && rule.full_name) {
-              const rName = rule.full_name.toLowerCase().trim();
-              const uName = user_name.toLowerCase().trim();
-              if (rName === uName || rName.includes(uName)) return true;
-            }
-            return false;
-          });
+    // Jika mata kuliah dinonaktifkan, mahasiswa tidak dapat mengaksesnya
+    if (user_role === 'student' && (!courses[0].is_published || courses[0].is_published === 0)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Mata kuliah ini sedang dinonaktifkan sehingga tidak dapat diakses oleh mahasiswa.'
+      });
+    }
 
-          if (!hasAccess) {
-            return res.status(403).json({
-              success: false,
-              message: 'Mata kuliah ini memiliki akses terbatas. Akun Anda belum terdaftar untuk mengakses mata kuliah ini.'
-            });
-          }
+    // Cek hak akses untuk Dosen (instructor)
+    if (user_role === 'instructor') {
+      const isAssignedInstructor = Number(courses[0].instructor_id) === Number(studentUserId);
+      if (!isAssignedInstructor) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda bukan dosen pengampu untuk mata kuliah ini. Akses dibatasi.'
+        });
+      }
+    }
+
+    // Gunakan ID numerik DB (bukan slug)
+    const courseId = courses[0].id;
+
+    // Cek aturan akses jika mahasiswa (student)
+    if (user_role === 'student') {
+      const [rules] = await pool.query('SELECT * FROM course_access_rules WHERE course_id = ?', [courseId]);
+      // Jika mata kuliah belum memiliki aturan akses sama sekali, mahasiswa tidak diberi akses
+      if (rules.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Mata kuliah ini belum dibuka atau belum diberikan izin akses untuk mahasiswa.'
+        });
+      }
+
+      const hasAccess = rules.some((rule) => {
+        // 1. Cocokkan ID user mahasiswa
+        if (rule.user_id && studentUserId && Number(rule.user_id) === Number(studentUserId)) return true;
+        // 2. Cocokkan Angkatan (hanya rule_type = 'year')
+        if (rule.rule_type === 'year' && rule.academic_year && user_academic_year &&
+          String(rule.academic_year).trim() === String(user_academic_year).trim()) return true;
+        // 3. Cocokkan Nama (hanya rule_type = 'name' atau 'student' tanpa user_id)
+        if ((rule.rule_type === 'name' || rule.rule_type === 'student') && !rule.user_id && user_name && rule.full_name) {
+          const rName = rule.full_name.toLowerCase().trim();
+          const uName = user_name.toLowerCase().trim();
+          if (rName === uName || rName.includes(uName)) return true;
         }
+        return false;
+      });
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          message: 'Mata kuliah ini memiliki akses terbatas. Akun Anda belum terdaftar untuk mengakses mata kuliah ini.'
+        });
       }
     }
 
@@ -174,7 +292,7 @@ async function getCourseById(req, res) {
     // Ambil sections & materials
     let [sections] = await pool.query(
       'SELECT * FROM sections WHERE course_id = ? ORDER BY order_index ASC',
-      [id]
+      [courseId]
     );
 
     // Jika sections belum ada, auto buatkan berdasarkan total_sessions mata kuliah
@@ -183,14 +301,24 @@ async function getCourseById(req, res) {
       for (let i = 1; i <= sessionCount; i++) {
         await pool.query(
           'INSERT INTO sections (course_id, title, order_index) VALUES (?, ?, ?)',
-          [id, `PERTEMUAN ${toRoman(i)}`, i]
+          [courseId, `PERTEMUAN ${toRoman(i)}`, i]
         );
       }
       const [newSections] = await pool.query(
         'SELECT * FROM sections WHERE course_id = ? ORDER BY order_index ASC',
-        [id]
+        [courseId]
       );
       sections = newSections;
+    }
+
+    // Jika user adalah student, ambil daftar section_id yang sudah ia hadiri
+    let attendedSectionIds = [];
+    if (studentUserId) {
+      const [attendedRows] = await pool.query(
+        'SELECT section_id FROM attendance WHERE course_id = ? AND student_id = ?',
+        [courseId, studentUserId]
+      );
+      attendedSectionIds = attendedRows.map((r) => r.section_id);
     }
 
     for (const section of sections) {
@@ -199,9 +327,10 @@ async function getCourseById(req, res) {
         [section.id]
       );
       section.materials = materials;
+      section.has_attended = attendedSectionIds.includes(section.id);
     }
 
-    const course = { ...courses[0], sections };
+    const course = { ...courses[0], sections, attended_section_ids: attendedSectionIds };
     res.json({ success: true, data: course });
   } catch (err) {
     console.error('Get course by ID error:', err);
@@ -398,15 +527,384 @@ async function deleteSection(req, res) {
   }
 }
 
+// ─── ATTENDANCE (PRESENSI) ───────────────────────────────────────────────────
+
+// Toggle status presensi (Aktifkan / Nonaktifkan Presensi) oleh Dosen atau Admin
+async function toggleAttendance(req, res) {
+  const { id } = req.params; // section_id
+  const { is_active } = req.body; // boolean opsional; jika undefined, toggle otomatis
+
+  try {
+    const [sections] = await pool.query('SELECT id, course_id, attendance_active FROM sections WHERE id = ?', [id]);
+    if (sections.length === 0) {
+      return res.status(404).json({ success: false, message: 'Pertemuan tidak ditemukan' });
+    }
+
+    const currentStatus = Boolean(sections[0].attendance_active);
+    const newStatus = is_active !== undefined ? Boolean(is_active) : !currentStatus;
+
+    await pool.query('UPDATE sections SET attendance_active = ? WHERE id = ?', [newStatus, id]);
+
+    res.json({
+      success: true,
+      message: newStatus ? 'Presensi berhasil diaktifkan' : 'Presensi berhasil dinonaktifkan',
+      data: {
+        section_id: Number(id),
+        attendance_active: newStatus,
+      },
+    });
+  } catch (err) {
+    console.error('Toggle attendance error:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Mahasiswa klik hadir 1x selamanya
+async function submitAttendance(req, res) {
+  const { id } = req.params; // section_id
+  const studentId = req.user.id;
+  const studentName = req.user.full_name || req.user.name || req.user.email || 'Mahasiswa';
+
+  try {
+    // 1. Cek apakah section ada dan attendance_active
+    const [sections] = await pool.query('SELECT id, course_id, attendance_active, title FROM sections WHERE id = ?', [id]);
+    if (sections.length === 0) {
+      return res.status(404).json({ success: false, message: 'Pertemuan tidak ditemukan' });
+    }
+
+    const section = sections[0];
+    if (!section.attendance_active) {
+      return res.status(400).json({
+        success: false,
+        message: 'Presensi untuk pertemuan ini sedang dinonaktifkan atau belum dibuka oleh dosen pengampu.'
+      });
+    }
+
+    // 2. Cek apakah sudah pernah hadir (klik 1x selamanya)
+    const [existing] = await pool.query(
+      'SELECT id, attended_at FROM attendance WHERE section_id = ? AND student_id = ?',
+      [id, studentId]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Anda sudah mengisi presensi untuk pertemuan ini sebelumnya.',
+        already_attended: true,
+      });
+    }
+
+    // Ambil info nama lengkap & NIM dari profile jika ada
+    let studentNim = null;
+    let finalStudentName = studentName;
+    try {
+      const [userRows] = await pool.query(
+        `SELECT full_name, nim_nip FROM ${USER_DB}.profiles WHERE user_id = ? LIMIT 1`,
+        [studentId]
+      );
+      if (userRows.length > 0) {
+        if (userRows[0].full_name) finalStudentName = userRows[0].full_name;
+        if (userRows[0].nim_nip) studentNim = userRows[0].nim_nip;
+      }
+    } catch (e) {}
+
+    // 3. Simpan ke database (UNIQUE constraint pada section_id + student_id menjamin integritas 1x)
+    await pool.query(
+      'INSERT INTO attendance (section_id, course_id, student_id, student_name, student_nim) VALUES (?, ?, ?, ?, ?)',
+      [id, section.course_id, studentId, finalStudentName, studentNim]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Presensi berhasil dicatat. Anda terdata hadir.',
+      data: {
+        section_id: Number(id),
+        attended: true,
+      },
+    });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        success: false,
+        message: 'Anda sudah mengisi presensi untuk pertemuan ini sebelumnya.',
+        already_attended: true,
+      });
+    }
+    console.error('Submit attendance error:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Get daftar hadir untuk keperluan database / dosen (internal)
+async function getAttendance(req, res) {
+  const { id } = req.params; // section_id
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, section_id, course_id, student_id, student_name, student_nim, attended_at FROM attendance WHERE section_id = ? ORDER BY attended_at ASC',
+      [id]
+    );
+    res.json({ success: true, data: rows, total: rows.length });
+  } catch (err) {
+    console.error('Get attendance error:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Rekap lengkap presensi per mata kuliah untuk Halaman Presensi & Download Excel (Admin & Dosen)
+async function getCourseAttendanceReport(req, res) {
+  const { courseId } = req.params;
+  const currentUserId = req.user.id;
+  const currentUserRole = req.user.role;
+
+  try {
+    // 1. Ambil data mata kuliah
+    const [courses] = await pool.query('SELECT * FROM courses WHERE id = ?', [courseId]);
+    if (courses.length === 0) {
+      return res.status(404).json({ success: false, message: 'Mata kuliah tidak ditemukan' });
+    }
+
+    const course = courses[0];
+
+    // Jika dosen, pastikan hanya bisa membuka matkul miliknya
+    if (currentUserRole === 'instructor' && Number(course.instructor_id) !== Number(currentUserId)) {
+      return res.status(403).json({ success: false, message: 'Anda bukan dosen pengampu untuk mata kuliah ini' });
+    }
+
+    // 2. Ambil seluruh sesi/pertemuan mata kuliah urut order_index
+    const [sections] = await pool.query(
+      'SELECT id, title, order_index, attendance_active, created_at FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+      [courseId]
+    );
+
+    // 3. Ambil daftar mahasiswa yang memiliki akses ke matkul ini
+    const [rules] = await pool.query(
+      'SELECT user_id, full_name, nim_nip, academic_year, rule_type FROM course_access_rules WHERE course_id = ?',
+      [courseId]
+    );
+
+    let allStudents = [];
+    try {
+      const [stuRows] = await pool.query(
+        `SELECT user_id, full_name, nim_nip, academic_year, semester 
+         FROM ${USER_DB}.profiles 
+         WHERE role = 'student' 
+         ORDER BY full_name ASC`
+      );
+      allStudents = stuRows;
+    } catch (e) {}
+
+    // Saring mahasiswa yang diberi akses ke matkul ini
+    let allowedStudents = [];
+    if (rules.length > 0) {
+      allowedStudents = allStudents.filter((st) => {
+        return rules.some((r) => {
+          if (r.user_id && Number(r.user_id) === Number(st.user_id)) return true;
+          if (r.rule_type === 'year' && r.academic_year && st.academic_year &&
+            String(r.academic_year).trim() === String(st.academic_year).trim()) return true;
+          if ((r.rule_type === 'name' || r.rule_type === 'student') && !r.user_id && r.full_name && st.full_name) {
+            const rName = r.full_name.toLowerCase().trim();
+            const uName = st.full_name.toLowerCase().trim();
+            if (rName === uName || rName.includes(uName)) return true;
+          }
+          return false;
+        });
+      });
+    }
+
+    // 4. Ambil seluruh log presensi kehadiran untuk matkul ini
+    const [attendanceRows] = await pool.query(
+      'SELECT id, section_id, student_id, student_name, student_nim, attended_at FROM attendance WHERE course_id = ?',
+      [courseId]
+    );
+
+    // Buat map: { `${student_id}_${section_id}`: attended_at }
+    const attendanceMap = {};
+    attendanceRows.forEach((att) => {
+      attendanceMap[`${att.student_id}_${att.section_id}`] = att.attended_at;
+    });
+
+    // Jika ada mahasiswa yang tercatat hadir di database tapi belum masuk allowedStudents (misal record lama), sertakan juga
+    const existingStudentIds = new Set(allowedStudents.map((s) => s.user_id));
+    attendanceRows.forEach((att) => {
+      if (!existingStudentIds.has(att.student_id)) {
+        existingStudentIds.add(att.student_id);
+        allowedStudents.push({
+          user_id: att.student_id,
+          full_name: att.student_name || `Mahasiswa #${att.student_id}`,
+          nim_nip: att.student_nim || '-',
+          academic_year: '-',
+          semester: '-',
+        });
+      }
+    });
+
+    // Urutkan mahasiswa berdasarkan nama
+    allowedStudents.sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''));
+
+    // 5. Susun matriks kehadiran per mahasiswa
+    const matrix = allowedStudents.map((st) => {
+      let attendedCount = 0;
+      const sessionStatus = {};
+
+      sections.forEach((sec) => {
+        const attendedAt = attendanceMap[`${st.user_id}_${sec.id}`] || null;
+        if (attendedAt) attendedCount++;
+        sessionStatus[sec.id] = {
+          attended: Boolean(attendedAt),
+          attended_at: attendedAt,
+        };
+      });
+
+      const totalSessions = sections.length;
+      const percentage = totalSessions > 0 ? Math.round((attendedCount / totalSessions) * 100) : 0;
+
+      return {
+        student_id: st.user_id,
+        full_name: st.full_name,
+        nim_nip: st.nim_nip || '-',
+        academic_year: st.academic_year || '-',
+        semester: st.semester || '-',
+        attended_count: attendedCount,
+        attendance_percentage: percentage,
+        sessions: sessionStatus,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        course: {
+          id: course.id,
+          title: course.title,
+          course_code: course.course_code,
+          instructor_name: course.instructor_name,
+          department: course.department,
+          semester: course.semester,
+          sks: course.sks,
+          total_sessions: course.total_sessions || sections.length,
+        },
+        sections,
+        total_students: allowedStudents.length,
+        matrix,
+      },
+    });
+  } catch (err) {
+    console.error('Get course attendance report error:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+}
+
+// Statistik grafik kehadiran 4 pertemuan terakhir per mata kuliah untuk dosen
+async function getInstructorAttendanceStats(req, res) {
+  const instructorId = req.user.id;
+  const userRole = req.user.role;
+
+  try {
+    // Ambil matkul yang diampu oleh dosen (atau semua jika admin)
+    let coursesQuery = 'SELECT id, title, course_code FROM courses';
+    let coursesParams = [];
+    if (userRole !== 'admin') {
+      coursesQuery += ' WHERE instructor_id = ?';
+      coursesParams.push(instructorId);
+    }
+    coursesQuery += ' ORDER BY created_at DESC';
+
+    const [courses] = await pool.query(coursesQuery, coursesParams);
+
+    const resultCourses = [];
+
+    for (const c of courses) {
+      // Ambil seluruh pertemuan matkul ini urut order_index ASC
+      const [sections] = await pool.query(
+        'SELECT id, course_id, title, order_index, attendance_active FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+        [c.id]
+      );
+
+      if (sections.length === 0) continue;
+
+      // Cari pertemuan tertinggi yang presensinya aktif atau sudah pernah diisi kehadiran
+      const [attendedSections] = await pool.query(
+        'SELECT DISTINCT section_id FROM attendance WHERE course_id = ?',
+        [c.id]
+      );
+      const attendedSectionIdSet = new Set(attendedSections.map(a => a.section_id));
+
+      // Indeks sesi aktif tertinggi (1-based)
+      let maxActiveOrder = 0;
+      sections.forEach((sec, idx) => {
+        const order = sec.order_index || (idx + 1);
+        if (sec.attendance_active || attendedSectionIdSet.has(sec.id)) {
+          if (order > maxActiveOrder) {
+            maxActiveOrder = order;
+          }
+        }
+      });
+
+      // Window 4 pertemuan terakhir:
+      // Misal maxActiveOrder = 5 -> ambil order 2, 3, 4, 5 (pertemuan 1 tidak ditampilkan)
+      // Misal maxActiveOrder <= 4 -> ambil order 1, 2, 3, 4 (atau 4 sesi pertama)
+      let startOrder = 1;
+      let endOrder = 4;
+      if (maxActiveOrder > 4) {
+        endOrder = maxActiveOrder;
+        startOrder = maxActiveOrder - 3;
+      }
+
+      // Filter 4 sesi sesuai window
+      const targetSections = sections.filter((sec, idx) => {
+        const order = sec.order_index || (idx + 1);
+        return order >= startOrder && order <= endOrder;
+      });
+
+      // Hitung jumlah mahasiswa hadir per section
+      const sessionsData = [];
+      for (const sec of targetSections) {
+        const [countRow] = await pool.query(
+          'SELECT COUNT(*) as hadir_count FROM attendance WHERE section_id = ?',
+          [sec.id]
+        );
+        sessionsData.push({
+          section_id: sec.id,
+          title: sec.title,
+          order_index: sec.order_index,
+          is_active: Boolean(sec.attendance_active),
+          hadir_count: Number(countRow[0]?.hadir_count || 0),
+        });
+      }
+
+      resultCourses.push({
+        course_id: c.id,
+        course_title: c.title,
+        course_code: c.course_code,
+        sessions: sessionsData,
+      });
+    }
+
+    res.json({ success: true, data: resultCourses });
+  } catch (err) {
+    console.error('Get instructor attendance stats error:', err);
+    res.status(500).json({ success: false, message: 'Server error: ' + err.message });
+  }
+}
+
 // ─── MATERIALS ────────────────────────────────────────────────────────────────
 
 async function uploadMaterial(req, res) {
-  const { section_id, course_id, title, description, material_type, external_url, content, order_index, is_downloadable } = req.body;
+  const { section_id, course_id, title, description, material_type, external_url, youtube_url, content, order_index, is_downloadable } = req.body;
   const uploaded_by = req.user.id;
 
   if (!section_id || !course_id || !title || !material_type) {
     if (req.file) fs.unlinkSync(req.file.path);
     return res.status(400).json({ success: false, message: 'section_id, course_id, title, material_type wajib diisi' });
+  }
+
+  // Untuk tipe youtube, file tidak wajib — URL disimpan di external_url
+  const resolvedExternalUrl = material_type === 'youtube'
+    ? (youtube_url || external_url || null)
+    : (external_url || null);
+
+  if (material_type === 'youtube' && !resolvedExternalUrl) {
+    return res.status(400).json({ success: false, message: 'youtube_url wajib diisi untuk tipe YouTube' });
   }
 
   let file_url = null, file_name = null, file_size = null;
@@ -422,7 +920,7 @@ async function uploadMaterial(req, res) {
       `INSERT INTO materials 
        (section_id, course_id, title, description, material_type, file_url, file_name, file_size, external_url, content, order_index, is_downloadable, uploaded_by) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [section_id, course_id, title, description, material_type, file_url, file_name, file_size, external_url, content, order_index || 0, is_downloadable !== false, uploaded_by]
+      [section_id, course_id, title, description, material_type, file_url, file_name, file_size, resolvedExternalUrl, content, order_index || 0, is_downloadable !== false, uploaded_by]
     );
     res.status(201).json({ success: true, message: 'Materi berhasil diupload', data: { id: result.insertId, file_url, file_name } });
   } catch (err) {
@@ -564,7 +1062,7 @@ async function getComments(req, res) {
                         COALESCE(NULLIF(p.full_name, ''), c.user_name) AS user_name,
                         p.avatar_url
                  FROM comments c
-                 LEFT JOIN elearning_users.profiles p ON c.user_id = p.user_id
+                 LEFT JOIN ${USER_DB}.profiles p ON c.user_id = p.user_id
                  WHERE c.course_id = ?`;
     const params = [courseId];
 
@@ -591,11 +1089,11 @@ async function createComment(req, res) {
   const user_id = req.user.id;
   const user_role = req.user.role || 'student';
 
-  // Utamakan mengambil Nama Lengkap dari elearning_users.profiles
+  // Utamakan mengambil Nama Lengkap dari profile
   let finalUserName = user_name;
   try {
     const [prof] = await pool.query(
-      'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+      `SELECT full_name FROM ${USER_DB}.profiles WHERE user_id = ?`,
       [user_id]
     );
     if (prof.length > 0 && prof[0].full_name && prof[0].full_name.trim()) {
@@ -674,7 +1172,7 @@ async function getAccessRules(req, res) {
         COALESCE(r.academic_year, p.academic_year) as academic_year,
         COALESCE(r.semester, p.semester) as semester
        FROM course_access_rules r
-       LEFT JOIN elearning_users.profiles p ON r.user_id = p.user_id
+       LEFT JOIN ${USER_DB}.profiles p ON r.user_id = p.user_id
        WHERE r.course_id = ?
        ORDER BY r.created_at DESC`,
       [id]
@@ -722,7 +1220,7 @@ async function addAccessRule(req, res) {
         // Ambil semua mahasiswa angkatan tsb dari database
         const [students] = await pool.query(
           `SELECT user_id, full_name, nim_nip, academic_year, semester 
-           FROM elearning_users.profiles 
+           FROM ${USER_DB}.profiles 
            WHERE role = 'student' AND academic_year = ?`,
           [item]
         );
@@ -761,10 +1259,10 @@ async function addAccessRule(req, res) {
         addedList.push(`Angkatan ${item} (${students.length} mahasiswa)`);
       } else {
         // 2. Input adalah Nama Mahasiswa atau NIM
-        // Cocokkan dengan data user di database (elearning_users.profiles)
+        // Cocokkan dengan data user di database (profiles)
         const [matchedStudents] = await pool.query(
           `SELECT user_id, full_name, nim_nip, academic_year, semester 
-           FROM elearning_users.profiles 
+           FROM ${USER_DB}.profiles 
            WHERE role = 'student' AND (
              LOWER(full_name) LIKE LOWER(?) 
              OR (nim_nip IS NOT NULL AND nim_nip = ?)
@@ -848,6 +1346,7 @@ module.exports = {
   getAllCourses, getMyCourses, getCourseById, createCourse, updateCourse, deleteCourse,
   getAdminCourseStats,
   createSection, updateSection, deleteSection,
+  toggleAttendance, submitAttendance, getAttendance, getInstructorAttendanceStats, getCourseAttendanceReport,
   uploadMaterial, downloadMaterial, deleteMaterial,
   getAnnouncements, createAnnouncement, deleteAnnouncement,
   getComments, createComment, deleteComment,

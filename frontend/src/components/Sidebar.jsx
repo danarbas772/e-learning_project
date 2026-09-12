@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   BookOpen, LayoutDashboard, Users, Award, Calendar,
-  FileText, LogOut, GraduationCap, Menu, X
+  FileText, LogOut, GraduationCap, Menu, X, UserCheck
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -18,6 +18,7 @@ const navItems = {
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: BookOpen, label: 'Mata Kuliah', path: '/courses' },
     { icon: Award, label: 'Ujian', path: '/exams' },
+    { icon: UserCheck, label: 'Presensi', path: '/attendance' },
     { icon: Calendar, label: 'Kalender', path: '/calendar' },
   ],
   admin: [
@@ -25,8 +26,8 @@ const navItems = {
     { icon: Users, label: 'Kelola Pengguna', path: '/admin/users' },
     { icon: BookOpen, label: 'Mata Kuliah', path: '/courses' },
     { icon: Award, label: 'Ujian', path: '/exams' },
+    { icon: UserCheck, label: 'Presensi', path: '/attendance' },
     { icon: Calendar, label: 'Kalender', path: '/calendar' },
-    { icon: FileText, label: 'Laporan', path: '/admin/reports' },
   ],
 };
 
@@ -83,7 +84,7 @@ export default function Sidebar() {
             <div className="sidebar-logo-icon">
               <GraduationCap size={22} />
             </div>
-            <span className="sidebar-logo-text">EduSpace</span>
+            <span className="sidebar-logo-text">Bas Learning</span>
           </Link>
 
           {/* Tombol tutup khusus tampilan smartphone */}

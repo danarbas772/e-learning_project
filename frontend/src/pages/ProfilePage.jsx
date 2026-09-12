@@ -180,15 +180,28 @@ export default function ProfilePage() {
             <form onSubmit={handleSubmit} className="profile-form">
               <div className="form-grid-2">
                 <div className="form-group">
-                  <label>Nama Lengkap *</label>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Nama Lengkap *</span>
+                    {user?.role === 'student' && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Lock size={12} /> Dikunci
+                      </span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     required
+                    disabled={user?.role === 'student'}
                     className="form-input"
                     placeholder="Nama Lengkap Anda"
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                   />
+                  {user?.role === 'student' && (
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      Nama mahasiswa hanya dapat diubah oleh Administrator.
+                    </small>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -217,28 +230,50 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="form-group">
-                  <label>Program Studi</label>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Program Studi</span>
+                    {user?.role === 'student' && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Lock size={12} /> Dikunci
+                      </span>
+                    )}
+                  </label>
                   <input
                     type="text"
+                    disabled={user?.role === 'student'}
                     className="form-input"
                     placeholder="Contoh: Teknik Informatika / Manajemen"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                   />
+                  {user?.role === 'student' && (
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      Program studi hanya dapat diubah oleh Administrator.
+                    </small>
+                  )}
                 </div>
               </div>
 
               {user?.role === 'student' && (
                 <div className="form-grid-2">
                   <div className="form-group">
-                    <label>Tahun Angkatan</label>
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>Tahun Angkatan</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Lock size={12} /> Dikunci
+                      </span>
+                    </label>
                     <input
                       type="text"
+                      disabled
                       className="form-input"
                       placeholder="Contoh: 2024"
                       value={formData.academic_year}
                       onChange={(e) => setFormData({ ...formData, academic_year: e.target.value })}
                     />
+                    <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
+                      Tahun angkatan hanya dapat diubah oleh Administrator.
+                    </small>
                   </div>
 
                   <div className="form-group">

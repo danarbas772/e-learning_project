@@ -11,14 +11,24 @@ import {
   BookOpen, MessageSquare, Upload, FileText, Send, Trash2,
   Calendar, Layers, Award, ChevronDown, ChevronUp, Plus,
   FileSpreadsheet, Monitor, Download, Clock, AlertCircle, CheckCircle2,
-  HelpCircle, CheckCircle, X, Lock, CornerDownRight
+  HelpCircle, CheckCircle, X, Lock, CornerDownRight, UserCheck, Radio
 } from 'lucide-react';
 import './CourseForumDetail.css';
 
 export default function CourseForumDetailPage() {
-  const { id } = useParams();
+  const { slug } = useParams();
   const { user, isAdmin, isInstructor } = useAuth();
   const isPrivileged = isAdmin || isInstructor;
+
+  // Helper: title → URL slug
+  const toSlug = (str) => str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
 
   const [course, setCourse] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
@@ -44,7 +54,32 @@ export default function CourseForumDetailPage() {
   const [materialDesc, setMaterialDesc] = useState('');
   const [materialType, setMaterialType] = useState('ppt');
   const [materialFile, setMaterialFile] = useState(null);
+  const [materialYoutubeUrl, setMaterialYoutubeUrl] = useState('');
   const [submittingMaterial, setSubmittingMaterial] = useState(false);
+
+  // Helper: ekstrak YouTube video ID dari berbagai format URL
+  const getYoutubeId = (url) => {
+    if (!url) return null;
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const re of patterns) {
+      const m = url.match(re);
+      if (m) return m[1];
+    }
+    return null;
+  };
+
+  // Helper: accept attribute untuk input file berdasarkan tipe
+  const getFileAccept = (type) => {
+    switch (type) {
+      case 'ppt': return '.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'pdf': return '.pdf,application/pdf';
+      case 'doc': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'video': return '.mp4,.webm,.ogg,.mkv,.avi,.mov,video/*';
+      default: return '*';
+    }
+  };
 
   // Modal Quiz Taking State (Untuk Mahasiswa / Ujian)
   const [activeQuizModal, setActiveQuizModal] = useState(null);
@@ -69,6 +104,11 @@ export default function CourseForumDetailPage() {
     onConfirm: null,
   });
 
+  // Attendance state
+  const [attendedSections, setAttendedSections] = useState(new Set());
+  const [togglingAttendanceId, setTogglingAttendanceId] = useState(null);
+  const [submittingAttendanceId, setSubmittingAttendanceId] = useState(null);
+
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast({ type: '', message: '' }), 3500);
@@ -76,7 +116,7 @@ export default function CourseForumDetailPage() {
 
   useEffect(() => {
     fetchCourseData();
-  }, [id]);
+  }, [slug]);
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -97,26 +137,41 @@ export default function CourseForumDetailPage() {
           }
         } catch (e) {}
       } else if (user?.role === 'instructor') {
-        // Dosen dikirim user_role agar filter akses berlaku
-        // user_id diambil backend dari JWT token Authorization header
+        // Dosen dikirim user_role dan user_id agar filter akses hanya untuk dosen pengampu
         params = { user_role: 'instructor' };
+        if (user?.id) params.user_id = user.id;
       }
 
 
       const [cRes, annRes, quizRes, commRes] = await Promise.all([
-        courseAPI.getById(id, params),
-        courseAPI.getAnnouncements(id).catch(() => ({ data: { data: [] } })),
-        quizAPI.getByCourse(id).catch(() => ({ data: { data: [] } })),
-        courseAPI.getComments(id).catch(() => ({ data: { data: [] } })),
+        courseAPI.getById(slug, params),
+        courseAPI.getAnnouncements(slug).catch(() => ({ data: { data: [] } })),
+        quizAPI.getByCourse(slug).catch(() => ({ data: { data: [] } })),
+        courseAPI.getComments(slug).catch(() => ({ data: { data: [] } })),
       ]);
 
-      setCourse(cRes.data.data);
-      setAnnouncements(annRes.data?.data || []);
-      setQuizzes(quizRes.data?.data || []);
+      const courseData = cRes.data.data;
+      const courseNumericId = courseData?.id;
+      setCourse(courseData);
+      if (courseData?.attended_section_ids) {
+        setAttendedSections(new Set(courseData.attended_section_ids));
+      }
+
+      // Refetch announcements/quizzes/comments with numeric ID for sub-resources
+      const [annRes2, quizRes2, commRes2] = courseNumericId && courseNumericId !== slug
+        ? await Promise.all([
+            courseAPI.getAnnouncements(courseNumericId).catch(() => ({ data: { data: [] } })),
+            quizAPI.getByCourse(courseNumericId).catch(() => ({ data: { data: [] } })),
+            courseAPI.getComments(courseNumericId).catch(() => ({ data: { data: [] } })),
+          ])
+        : [annRes, quizRes, commRes];
+
+      setAnnouncements(annRes2.data?.data || []);
+      setQuizzes(quizRes2.data?.data || []);
 
       // Group comments by session_id
       const grouped = {};
-      (commRes.data?.data || []).forEach((c) => {
+      (commRes2.data?.data || []).forEach((c) => {
         const sId = c.session_id || 'general';
         if (!grouped[sId]) grouped[sId] = [];
         grouped[sId].push(c);
@@ -151,7 +206,7 @@ export default function CourseForumDetailPage() {
     if (!text) return;
 
     try {
-      const res = await courseAPI.createComment(id, {
+      const res = await courseAPI.createComment(course?.id, {
         session_id: sessionId,
         comment_text: text,
         user_name: user?.full_name || user?.email,
@@ -217,7 +272,7 @@ export default function CourseForumDetailPage() {
     }
 
     try {
-      const res = await courseAPI.createAnnouncement(id, formData);
+      const res = await courseAPI.createAnnouncement(course?.id, formData);
       setAnnouncements((prev) => [res.data.data, ...prev]);
       setShowAnnModal(false);
       setAnnTitle('');
@@ -254,18 +309,52 @@ export default function CourseForumDetailPage() {
   // Submit Upload Materi (Per Sesi)
   const handleUploadMaterial = async (e) => {
     e.preventDefault();
-    if (!materialTitle || !materialFile || !uploadSessionId) {
-      return showToast('error', 'Lengkapi judul, file materi, dan sesi');
+
+    if (!materialTitle || !uploadSessionId) {
+      return showToast('error', 'Lengkapi judul materi dan sesi');
+    }
+
+    // Validasi khusus per tipe
+    if (materialType === 'youtube') {
+      if (!materialYoutubeUrl.trim()) {
+        return showToast('error', 'Masukkan link YouTube yang valid');
+      }
+      if (!getYoutubeId(materialYoutubeUrl)) {
+        return showToast('error', 'Link YouTube tidak valid. Contoh: https://www.youtube.com/watch?v=...');
+      }
+    } else {
+      if (!materialFile) {
+        return showToast('error', 'Pilih file materi terlebih dahulu');
+      }
+      // Validasi ekstensi file sesuai tipe
+      const fileName = materialFile.name.toLowerCase();
+      const extMap = {
+        ppt: ['.ppt', '.pptx'],
+        pdf: ['.pdf'],
+        doc: ['.doc', '.docx'],
+        video: ['.mp4', '.webm', '.ogg', '.mkv', '.avi', '.mov'],
+      };
+      const allowed = extMap[materialType] || [];
+      const valid = allowed.some(ext => fileName.endsWith(ext));
+      if (!valid) {
+        const labels = { ppt: 'PPT/PPTX', pdf: 'PDF', doc: 'DOC/DOCX', video: 'MP4/WEBM/OGG/MKV/AVI/MOV' };
+        return showToast('error', `Tipe file tidak cocok. Untuk tipe ${materialType.toUpperCase()}, gunakan file: ${labels[materialType]}`);
+      }
     }
 
     setSubmittingMaterial(true);
     const formData = new FormData();
     formData.append('section_id', uploadSessionId);
-    formData.append('course_id', id);
+    formData.append('course_id', course?.id);
     formData.append('title', materialTitle);
     formData.append('description', materialDesc);
     formData.append('material_type', materialType);
-    formData.append('file', materialFile);
+
+    if (materialType === 'youtube') {
+      formData.append('youtube_url', materialYoutubeUrl.trim());
+    } else {
+      formData.append('file', materialFile);
+    }
 
     try {
       await courseAPI.uploadMaterial(formData);
@@ -273,8 +362,10 @@ export default function CourseForumDetailPage() {
       setMaterialTitle('');
       setMaterialDesc('');
       setMaterialFile(null);
+      setMaterialYoutubeUrl('');
+      setMaterialType('ppt');
       fetchCourseData();
-      showToast('success', 'File materi berhasil diunggah ke pertemuan!');
+      showToast('success', materialType === 'youtube' ? 'Video YouTube berhasil ditambahkan!' : 'File materi berhasil diunggah ke pertemuan!');
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Gagal mengupload materi');
     } finally {
@@ -300,6 +391,60 @@ export default function CourseForumDetailPage() {
         }
       },
     });
+  };
+
+  // Presensi: Toggle Aktifkan / Nonaktifkan Presensi (Dosen / Admin)
+  const handleToggleAttendance = async (sectionId, currentActive) => {
+    setTogglingAttendanceId(sectionId);
+    try {
+      const res = await courseAPI.toggleAttendance(sectionId, !currentActive);
+      const newStatus = res.data?.data?.attendance_active ?? !currentActive;
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sections: (prev.sections || []).map((sec) =>
+            sec.id === sectionId ? { ...sec, attendance_active: newStatus } : sec
+          ),
+        };
+      });
+      showToast('success', newStatus ? 'Presensi berhasil diaktifkan untuk pertemuan ini' : 'Presensi berhasil dinonaktifkan');
+    } catch (err) {
+      console.error('Toggle attendance error:', err);
+      showToast('error', err.response?.data?.message || 'Gagal mengubah status presensi');
+    } finally {
+      setTogglingAttendanceId(null);
+    }
+  };
+
+  // Presensi: Mahasiswa klik Hadir 1x selamanya
+  const handleSubmitAttendance = async (sectionId) => {
+    if (attendedSections.has(sectionId)) {
+      return showToast('info', 'Anda sudah tercatat hadir pada pertemuan ini');
+    }
+
+    setSubmittingAttendanceId(sectionId);
+    try {
+      const res = await courseAPI.submitAttendance(sectionId);
+      setAttendedSections((prev) => new Set(prev).add(sectionId));
+      setCourse((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sections: (prev.sections || []).map((sec) =>
+            sec.id === sectionId ? { ...sec, has_attended: true } : sec
+          ),
+        };
+      });
+      showToast('success', res.data?.message || 'Presensi berhasil! Anda terdata hadir.');
+    } catch (err) {
+      if (err.response?.data?.already_attended) {
+        setAttendedSections((prev) => new Set(prev).add(sectionId));
+      }
+      showToast('error', err.response?.data?.message || 'Gagal mengirim presensi');
+    } finally {
+      setSubmittingAttendanceId(null);
+    }
   };
 
   // Buka Ujian / Quiz (Untuk Mahasiswa / Semua Role)
@@ -667,20 +812,70 @@ export default function CourseForumDetailPage() {
                     {/* Header Abu-abu Gelap (Title: PERTEMUAN I, II, ...) */}
                     <div className="session-bar-header">
                       <span className="session-bar-title">{section.title}</span>
-                      {isPrivileged && (
-                        <div className="session-bar-actions">
-                          <button
-                            onClick={() => {
-                              setUploadSessionId(section.id);
-                              setShowUploadModal(true);
-                            }}
-                            className="btn btn-primary btn-sm"
-                          >
-                            <Upload size={14} />
-                            <span>Upload PPT / Materi</span>
-                          </button>
-                        </div>
-                      )}
+                      <div className="session-bar-actions">
+                        {/* Tombol Presensi untuk Mahasiswa (Hadir 1x selamanya jika presensi aktif) */}
+                        {!isPrivileged && (
+                          section.attendance_active ? (
+                            attendedSections.has(section.id) || section.has_attended ? (
+                              <button
+                                type="button"
+                                className="btn btn-attendance-done btn-sm"
+                                disabled
+                                title="Anda sudah mengisi presensi pada pertemuan ini"
+                              >
+                                <CheckCircle2 size={14} />
+                                <span>Sudah Hadir</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSubmitAttendance(section.id)}
+                                disabled={submittingAttendanceId === section.id}
+                                className="btn btn-attendance-action btn-sm"
+                                title="Klik untuk mengisi presensi pertemuan ini (1x)"
+                              >
+                                <UserCheck size={14} />
+                                <span>{submittingAttendanceId === section.id ? 'Memproses...' : 'Hadir'}</span>
+                              </button>
+                            )
+                          ) : null
+                        )}
+
+                        {/* Tombol untuk Dosen / Admin */}
+                        {isPrivileged && (
+                          <>
+                            {/* Toggle Aktifkan / Nonaktifkan Presensi */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAttendance(section.id, Boolean(section.attendance_active))}
+                              disabled={togglingAttendanceId === section.id}
+                              className={`btn btn-sm ${section.attendance_active ? 'btn-attendance-active' : 'btn-attendance-inactive'}`}
+                              title={section.attendance_active ? 'Klik untuk menonaktifkan presensi' : 'Klik untuk mengaktifkan presensi'}
+                            >
+                              <Radio size={14} className={section.attendance_active ? 'attendance-pulse' : ''} />
+                              <span>
+                                {togglingAttendanceId === section.id
+                                  ? 'Menyimpan...'
+                                  : section.attendance_active
+                                  ? 'Nonaktifkan Presensi'
+                                  : 'Aktifkan Presensi'}
+                              </span>
+                            </button>
+
+                            {/* Tombol Upload PPT / Materi */}
+                            <button
+                              onClick={() => {
+                                setUploadSessionId(section.id);
+                                setShowUploadModal(true);
+                              }}
+                              className="btn btn-primary btn-sm"
+                            >
+                              <Upload size={14} />
+                              <span>Upload PPT / Materi</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {/* Konten Materi Perkuliahan di Pertemuan ini */}
@@ -689,12 +884,14 @@ export default function CourseForumDetailPage() {
                         <div className="session-materials-list">
                           {section.materials.map((mat) => {
                             const matType = (mat.material_type || 'ppt').toLowerCase();
+                            // external_url menyimpan link YouTube; file_url untuk fallback
+                            const ytId = matType === 'youtube' ? getYoutubeId(mat.external_url || mat.file_url || '') : null;
                             return (
                               <div key={mat.id} className="session-material-card">
                                 <div className="session-material-header">
                                   <div className="session-material-title-wrap">
                                     <span className={`material-badge-pill ${matType}`}>
-                                      {matType.toUpperCase()}
+                                      {matType === 'youtube' ? '▶ YOUTUBE' : matType.toUpperCase()}
                                     </span>
                                     <h4 className="session-material-title">{mat.title}</h4>
                                   </div>
@@ -719,7 +916,34 @@ export default function CourseForumDetailPage() {
                                   </div>
                                 )}
 
-                                {mat.file_name && (
+                                {/* Embedded YouTube Player */}
+                                {matType === 'youtube' && ytId && (
+                                  <div className="youtube-embed-wrapper">
+                                    <iframe
+                                      src={`https://www.youtube.com/embed/${ytId}?rel=0&modestbranding=1`}
+                                      title={mat.title}
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                )}
+
+                                {/* Jika youtube tapi ID tidak bisa diekstrak, tampilkan link */}
+                                {matType === 'youtube' && !ytId && (mat.external_url || mat.file_url) && (
+                                  <div className="session-material-attachment" style={{ marginTop: '10px' }}>
+                                    <a
+                                      href={mat.external_url || mat.file_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="btn-attachment-download"
+                                    >
+                                      ▶ Buka di YouTube
+                                    </a>
+                                  </div>
+                                )}
+
+                                {/* File attachment untuk tipe bukan youtube */}
+                                {matType !== 'youtube' && mat.file_name && (
                                   <div className="session-material-attachment">
                                     <div className="attachment-file-info">
                                       <FileText size={18} className="attachment-icon" />
@@ -1020,24 +1244,78 @@ export default function CourseForumDetailPage() {
                   <select
                     className="form-input"
                     value={materialType}
-                    onChange={(e) => setMaterialType(e.target.value)}
+                    onChange={(e) => {
+                      setMaterialType(e.target.value);
+                      setMaterialFile(null);
+                      setMaterialYoutubeUrl('');
+                    }}
                   >
-                    <option value="ppt">PowerPoint Presentation (.ppt, .pptx)</option>
-                    <option value="pdf">Dokumen PDF (.pdf)</option>
-                    <option value="doc">Word / Dokumen (.doc, .docx)</option>
-                    <option value="video">Video Pembelajaran (.mp4)</option>
+                    <option value="ppt">📊 PowerPoint Presentation (.ppt, .pptx)</option>
+                    <option value="pdf">📄 Dokumen PDF (.pdf)</option>
+                    <option value="doc">📝 Word / Dokumen (.doc, .docx)</option>
+                    <option value="video">🎬 Video Pembelajaran (.mp4, .webm, dst.)</option>
+                    <option value="youtube">▶ Link YouTube (Tonton Langsung)</option>
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label>Pilih Berkas / File</label>
-                  <input
-                    type="file"
-                    className="form-input"
-                    onChange={(e) => setMaterialFile(e.target.files[0])}
-                    required
-                  />
-                </div>
+                {/* Input file (untuk semua tipe kecuali youtube) */}
+                {materialType !== 'youtube' && (
+                  <div className="form-group">
+                    <label>
+                      Pilih Berkas / File
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                        {materialType === 'ppt' && '(Hanya .ppt / .pptx)'}
+                        {materialType === 'pdf' && '(Hanya .pdf)'}
+                        {materialType === 'doc' && '(Hanya .doc / .docx)'}
+                        {materialType === 'video' && '(Hanya .mp4, .webm, .ogg, .mkv, dll.)'}
+                      </span>
+                    </label>
+                    <input
+                      type="file"
+                      className="form-input"
+                      accept={getFileAccept(materialType)}
+                      onChange={(e) => setMaterialFile(e.target.files[0])}
+                      required
+                    />
+                    {materialFile && (
+                      <p style={{ fontSize: '0.8rem', color: 'hsl(160,70%,55%)', marginTop: '6px' }}>
+                        ✔ File terpilih: {materialFile.name}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Input URL YouTube */}
+                {materialType === 'youtube' && (
+                  <div className="form-group">
+                    <label>Link YouTube</label>
+                    <input
+                      type="url"
+                      className="form-input"
+                      placeholder="Contoh: https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                      value={materialYoutubeUrl}
+                      onChange={(e) => setMaterialYoutubeUrl(e.target.value)}
+                      required
+                    />
+                    {materialYoutubeUrl && getYoutubeId(materialYoutubeUrl) && (
+                      <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', position: 'relative', paddingBottom: '35%', height: 0, background: '#000' }}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${getYoutubeId(materialYoutubeUrl)}?rel=0&modestbranding=1`}
+                          title="Preview YouTube"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+                        />
+                      </div>
+                    )}
+                    {materialYoutubeUrl && !getYoutubeId(materialYoutubeUrl) && (
+                      <p style={{ fontSize: '0.8rem', color: 'hsl(0,70%,65%)', marginTop: '6px' }}>
+                        ✖ Link tidak valid. Gunakan format: https://www.youtube.com/watch?v=...
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label>Deskripsi Tambahan (Opsional)</label>
@@ -1081,7 +1359,7 @@ export default function CourseForumDetailPage() {
           isOpen={showCreateQuizModal}
           onClose={() => setShowCreateQuizModal(false)}
           onSuccess={fetchCourseData}
-          initialCourseId={id}
+          initialCourseId={course?.id}
           courseTitle={course?.title}
         />
 

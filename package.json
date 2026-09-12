@@ -1,18 +1,14 @@
 {
   "name": "e-learning-platform",
   "version": "1.0.0",
-  "description": "Platform E-Learning berbasis Microservices",
+  "description": "Platform E-Learning (Modular Monolith Backend & React Frontend)",
   "private": true,
   "scripts": {
-    "dev": "concurrently -k -p \"[{name}]\" -n \"GATEWAY,AUTH,USER,COURSE,ENROLL,QUIZ,FRONTEND\" -c \"bgBlue.bold,bgMagenta.bold,bgCyan.bold,bgGreen.bold,bgYellow.bold,bgRed.bold,bgBlack.bold\" \"npm:dev:gateway\" \"npm:dev:auth\" \"npm:dev:user\" \"npm:dev:course\" \"npm:dev:enrollment\" \"npm:dev:quiz\" \"npm:dev:frontend\"",
-    "dev:gateway": "cd backend/api-gateway && npm run dev",
-    "dev:auth": "cd backend/services/auth-service && npm run dev",
-    "dev:user": "cd backend/services/user-service && npm run dev",
-    "dev:course": "cd backend/services/course-service && npm run dev",
-    "dev:enrollment": "cd backend/services/enrollment-service && npm run dev",
-    "dev:quiz": "cd backend/services/quiz-service && npm run dev",
+    "start": "cd backend && npm start",
+    "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"bgBlue.bold,bgGreen.bold\" \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
     "dev:frontend": "cd frontend && npm run dev",
-    "install:all": "npm install && cd backend/api-gateway && npm install && cd ../services/auth-service && npm install && cd ../user-service && npm install && cd ../course-service && npm install && cd ../enrollment-service && npm install && cd ../quiz-service && npm install && cd ../../../frontend && npm install"
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "devDependencies": {
     "concurrently": "^10.0.5"

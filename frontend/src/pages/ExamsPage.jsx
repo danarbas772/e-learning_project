@@ -11,7 +11,7 @@ import {
   Award, Clock, CheckCircle2, HelpCircle, XCircle,
   PlayCircle, AlertCircle, BookOpen, X, Search, Filter,
   Plus, Users, Trash2, Calendar, FileText, Check, Lock, ShieldAlert,
-  Download, FileSpreadsheet
+  Download, FileSpreadsheet, Eye, EyeOff, Power
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { exportQuizParticipantsToExcel } from '../utils/quizExport';
@@ -25,6 +25,8 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCourse, setFilterCourse] = useState('Semua');
+  const [filterStatus, setFilterStatus] = useState('Semua'); // 'Semua' | 'Aktif' | 'Non-Aktif'
+  const [togglingQuizId, setTogglingQuizId] = useState(null);
 
   // Create Quiz Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -119,6 +121,24 @@ export default function ExamsPage() {
     }
   };
 
+  // Toggle Publish / Nonaktifkan Ujian
+  const handleTogglePublish = async (quiz) => {
+    setTogglingQuizId(quiz.id);
+    const newStatus = !quiz.is_published;
+    try {
+      await quizAPI.togglePublish(quiz.id, newStatus);
+      toast.success(newStatus ? `Ujian "${quiz.title}" berhasil diaktifkan` : `Ujian "${quiz.title}" berhasil dinonaktifkan`);
+      setQuizzes((prev) =>
+        prev.map((q) => (q.id === quiz.id ? { ...q, is_published: newStatus ? 1 : 0 } : q))
+      );
+    } catch (err) {
+      console.error('Toggle quiz publish error:', err);
+      toast.error('Gagal mengubah status ujian: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setTogglingQuizId(null);
+    }
+  };
+
   const formatSchedule = (dtStr) => {
     if (!dtStr) return null;
     try {
@@ -135,9 +155,29 @@ export default function ExamsPage() {
     }
   };
 
-  const uniqueCourses = ['Semua', ...new Set(quizzes.map((q) => q.course_title).filter(Boolean))];
+  // Hanya sertakan mata kuliah yang aktif
+  const validQuizzes = quizzes.filter(
+    (q) => q.course_is_published === undefined || (q.course_is_published !== false && q.course_is_published !== 0)
+  );
 
-  const filteredQuizzes = quizzes.filter((q) => {
+  const uniqueCourses = ['Semua', ...new Set(validQuizzes.map((q) => q.course_title).filter(Boolean))];
+
+  // Hitung jumlah ujian aktif dan non-aktif untuk tab filter Admin/Dosen
+  const activeCount = validQuizzes.filter((q) => Boolean(q.is_published)).length;
+  const inactiveCount = validQuizzes.filter((q) => !Boolean(q.is_published)).length;
+
+  const filteredQuizzes = validQuizzes.filter((q) => {
+    // Jika mahasiswa, sembunyikan ujian yang tidak aktif
+    if (isStudent && !q.is_published) {
+      return false;
+    }
+
+    // Filter status publikasi untuk Admin / Dosen
+    if (isPrivileged && filterStatus !== 'Semua') {
+      if (filterStatus === 'Aktif' && !q.is_published) return false;
+      if (filterStatus === 'Non-Aktif' && q.is_published) return false;
+    }
+
     const matchSearch =
       q.title.toLowerCase().includes(search.toLowerCase()) ||
       (q.course_title && q.course_title.toLowerCase().includes(search.toLowerCase())) ||
@@ -155,7 +195,7 @@ export default function ExamsPage() {
       <main className="main-content dashboard-content">
         <TopBarClock />
         <div className="container" style={{ padding: '24px' }}>
-          
+
           {/* Header */}
           <div className="page-header animate-fadeIn" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
@@ -203,6 +243,37 @@ export default function ExamsPage() {
                 </button>
               ))}
             </div>
+
+            {isPrivileged && (
+              <div className="exams-status-chips" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', paddingTop: '4px' }}>
+                <span className="chips-label">
+                  <CheckCircle2 size={14} /> Filter Status:
+                </span>
+                <button
+                  type="button"
+                  className={`course-chip ${filterStatus === 'Semua' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('Semua')}
+                >
+                  Semua ({validQuizzes.length})
+                </button>
+                <button
+                  type="button"
+                  className={`course-chip ${filterStatus === 'Aktif' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('Aktif')}
+                  style={filterStatus === 'Aktif' ? { backgroundColor: 'hsl(142, 70%, 35%)', borderColor: 'hsl(142, 70%, 35%)', color: '#fff' } : {}}
+                >
+                  🟢 Aktif ({activeCount})
+                </button>
+                <button
+                  type="button"
+                  className={`course-chip ${filterStatus === 'Non-Aktif' ? 'active' : ''}`}
+                  onClick={() => setFilterStatus('Non-Aktif')}
+                  style={filterStatus === 'Non-Aktif' ? { backgroundColor: 'hsl(0, 75%, 45%)', borderColor: 'hsl(0, 75%, 45%)', color: '#fff' } : {}}
+                >
+                  🔴 Non-Aktif ({inactiveCount})
+                </button>
+              </div>
+            )}
           </div>
 
           {/* List Kartu Ujian */}
@@ -234,15 +305,67 @@ export default function ExamsPage() {
                 const isNotStarted = quiz.start_time && new Date(quiz.start_time) > now;
                 const isEnded = quiz.end_time && new Date(quiz.end_time) < now;
 
+                const isInactive = !quiz.is_published;
+
                 return (
-                  <div key={quiz.id} className="exam-card card">
+                  <div
+                    key={quiz.id}
+                    className="exam-card card"
+                    style={isInactive ? { opacity: 0.88, border: '1px dashed hsla(0, 78%, 60%, 0.45)', backgroundColor: 'rgba(25, 20, 25, 0.4)' } : {}}
+                  >
                     <div className="exam-card-header">
-                      <div className="exam-type-tag">
-                        <Award size={14} />
-                        <span>
-                          {quiz.quiz_type === 'essay' ? 'ESSAY' : quiz.quiz_type === 'mixed' ? 'CAMPURAN' : 'PILIHAN GANDA'}
-                        </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div className="exam-type-tag">
+                          <Award size={14} />
+                          <span>
+                            {quiz.quiz_type === 'essay' ? 'ESSAY' : quiz.quiz_type === 'mixed' ? 'CAMPURAN' : 'PILIHAN GANDA'}
+                          </span>
+                        </div>
+
+                        {/* Status Badge: Dapat diklik langsung oleh Admin/Dosen */}
+                        {isPrivileged ? (
+                          <button
+                            type="button"
+                            className={`badge ${quiz.is_published ? 'badge-success' : 'badge-danger'}`}
+                            onClick={() => handleTogglePublish(quiz)}
+                            disabled={togglingQuizId === quiz.id}
+                            title={quiz.is_published ? 'Ujian Aktif. Klik untuk Menonaktifkan Ujian' : 'Ujian Non-Aktif. Klik untuk Mengaktifkan Ujian'}
+                            style={{
+                              cursor: 'pointer',
+                              border: quiz.is_published ? '1px solid hsla(142, 70%, 45%, 0.4)' : '1px solid hsla(0, 78%, 60%, 0.4)',
+                              background: quiz.is_published ? 'hsla(142, 70%, 45%, 0.15)' : 'hsla(0, 78%, 60%, 0.15)',
+                              color: quiz.is_published ? 'hsl(142, 70%, 65%)' : 'hsl(0, 78%, 70%)',
+                              padding: '3px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              transition: 'all 0.2s ease',
+                            }}
+                          >
+                            {togglingQuizId === quiz.id ? (
+                              <span className="spinner" style={{ width: '8px', height: '8px', borderWidth: '2px' }} />
+                            ) : (
+                              <span
+                                style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  backgroundColor: quiz.is_published ? 'hsl(142, 70%, 55%)' : 'hsl(0, 78%, 65%)',
+                                }}
+                              />
+                            )}
+                            <span>{quiz.is_published ? 'Aktif' : 'Non-Aktif'}</span>
+                          </button>
+                        ) : (
+                          <span className={`badge ${quiz.is_published ? 'badge-success' : 'badge-danger'}`}>
+                            {quiz.is_published ? 'Aktif' : 'Non-Aktif'}
+                          </span>
+                        )}
                       </div>
+
                       {quiz.course_title && (
                         <span className="exam-course-name" title={quiz.course_title}>
                           {quiz.course_code ? `[${quiz.course_code}] ` : ''}{quiz.course_title}
@@ -287,9 +410,9 @@ export default function ExamsPage() {
                       )}
                     </div>
 
-                    <div className="exam-card-footer" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div className="exam-card-footer" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                       {isPrivileged ? (
-                        /* ─── ROLE ADMIN / DOSEN: Rekap & Export Data Peserta (Tanpa Tombol Preview Naskah) ─── */
+                        /* ─── ROLE ADMIN / DOSEN: Rekap, Export, Toggle Status & Delete ─── */
                         <>
                           <button
                             type="button"
@@ -325,6 +448,42 @@ export default function ExamsPage() {
                             <span>Export Excel</span>
                           </button>
 
+                          {/* Tombol Aksi Cepat Nonaktifkan / Aktifkan Ujian */}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleTogglePublish(quiz)}
+                            disabled={togglingQuizId === quiz.id}
+                            title={quiz.is_published ? 'Klik untuk Menonaktifkan Ujian ini (Sembunyikan dari Mahasiswa)' : 'Klik untuk Mengaktifkan Ujian ini (Buka untuk Mahasiswa)'}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              padding: '0 12px',
+                              height: '40px',
+                              whiteSpace: 'nowrap',
+                              borderRadius: 'var(--radius-md)',
+                              color: quiz.is_published ? 'hsl(38, 95%, 65%)' : 'hsl(142, 70%, 65%)',
+                              border: quiz.is_published ? '1px solid hsla(38, 90%, 52%, 0.35)' : '1px solid hsla(142, 70%, 45%, 0.35)',
+                              backgroundColor: quiz.is_published ? 'hsla(38, 90%, 52%, 0.1)' : 'hsla(142, 70%, 45%, 0.1)'
+                            }}
+                          >
+                            {togglingQuizId === quiz.id ? (
+                              <span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                            ) : quiz.is_published ? (
+                              <>
+                                <EyeOff size={15} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Nonaktifkan</span>
+                              </>
+                            ) : (
+                              <>
+                                <Eye size={15} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600 }}>Aktifkan</span>
+                              </>
+                            )}
+                          </button>
+
                           <button
                             type="button"
                             className="btn btn-ghost btn-sm"
@@ -346,7 +505,11 @@ export default function ExamsPage() {
                               style={{ borderColor: 'hsla(160, 80%, 45%, 0.4)', color: 'hsl(160, 80%, 75%)' }}
                             >
                               <CheckCircle2 size={16} />
-                              <span>Sudah Dikerjakan (Nilai: {quiz.my_score !== null ? quiz.my_score : '-'})</span>
+                              <span>
+                                {quiz.my_score !== null && quiz.my_score !== undefined
+                                  ? `Sudah Dikerjakan (Nilai: ${quiz.my_score})`
+                                  : 'Sudah Dikerjakan (Esai - Menunggu Nilai)'}
+                              </span>
                             </button>
                           ) : isNotStarted ? (
                             <button
@@ -479,14 +642,28 @@ export default function ExamsPage() {
                                 <td>{att.nim || '-'}</td>
                                 <td>{formatSchedule(att.submitted_at)}</td>
                                 <td>
-                                  <strong style={{ fontSize: '1.05rem', color: att.is_passed ? 'hsl(160, 80%, 75%)' : 'hsl(0, 75%, 75%)' }}>
-                                    {att.score}
-                                  </strong> / 100
+                                  {att.score !== null && att.score !== undefined ? (
+                                    <>
+                                      <strong style={{ fontSize: '1.05rem', color: att.is_passed ? 'hsl(160, 80%, 75%)' : 'hsl(0, 75%, 75%)' }}>
+                                        {att.score}
+                                      </strong> / 100
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: '0.85rem', color: 'hsl(38, 90%, 65%)', fontWeight: 600 }}>
+                                      Menunggu Penilaian (Esai)
+                                    </span>
+                                  )}
                                 </td>
                                 <td>
-                                  <span className={`exam-type-tag ${att.is_passed ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.7rem' }}>
-                                    {att.is_passed ? 'LULUS' : 'REMEDIAL'}
-                                  </span>
+                                  {att.is_passed !== null && att.is_passed !== undefined ? (
+                                    <span className={`exam-type-tag ${att.is_passed ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.7rem' }}>
+                                      {att.is_passed ? 'LULUS' : 'REMEDIAL'}
+                                    </span>
+                                  ) : (
+                                    <span className="exam-type-tag" style={{ fontSize: '0.7rem', backgroundColor: 'hsla(38, 90%, 52%, 0.15)', color: 'hsl(38, 90%, 65%)', border: '1px solid hsla(38, 90%, 52%, 0.3)' }}>
+                                      TERKUMPUL
+                                    </span>
+                                  )}
                                 </td>
                                 <td>
                                   <button
@@ -555,17 +732,29 @@ export default function ExamsPage() {
                                 )}
                               </div>
                             </div>
-                            <span className={`exam-type-tag ${att.is_passed ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.72rem', flexShrink: 0 }}>
-                              {att.is_passed ? 'LULUS' : 'REMEDIAL'}
-                            </span>
+                            {att.is_passed !== null && att.is_passed !== undefined ? (
+                              <span className={`exam-type-tag ${att.is_passed ? 'bg-success' : 'bg-danger'}`} style={{ fontSize: '0.72rem', flexShrink: 0 }}>
+                                {att.is_passed ? 'LULUS' : 'REMEDIAL'}
+                              </span>
+                            ) : (
+                              <span className="exam-type-tag" style={{ fontSize: '0.72rem', backgroundColor: 'hsla(38, 90%, 52%, 0.15)', color: 'hsl(38, 90%, 65%)', border: '1px solid hsla(38, 90%, 52%, 0.3)', flexShrink: 0 }}>
+                                TERKUMPUL
+                              </span>
+                            )}
                           </div>
 
                           <div className="sub-mobile-metrics">
                             <div className="sub-mobile-metric-item">
                               <span className="sub-metric-label">Nilai Akhir:</span>
-                              <strong className="sub-metric-score" style={{ color: att.is_passed ? 'hsl(160, 80%, 75%)' : 'hsl(0, 75%, 75%)' }}>
-                                {att.score} <span className="sub-metric-total">/ 100</span>
-                              </strong>
+                              {att.score !== null && att.score !== undefined ? (
+                                <strong className="sub-metric-score" style={{ color: att.is_passed ? 'hsl(160, 80%, 75%)' : 'hsl(0, 75%, 75%)' }}>
+                                  {att.score} <span className="sub-metric-total">/ 100</span>
+                                </strong>
+                              ) : (
+                                <span style={{ fontSize: '0.82rem', color: 'hsl(38, 90%, 65%)', fontWeight: 600 }}>
+                                  Menunggu Penilaian (Esai)
+                                </span>
+                              )}
                             </div>
                             <div className="sub-mobile-metric-item">
                               <span className="sub-metric-label">Waktu Selesai:</span>

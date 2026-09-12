@@ -3,6 +3,9 @@ const bcrypt = require('bcryptjs');
 const xlsx = require('xlsx');
 const fs = require('fs');
 
+const AUTH_DB = process.env.DB_NAME_AUTH || process.env.AUTH_DB_NAME || process.env.DB_NAME || 'elearning_auth';
+const USER_DB = process.env.DB_NAME_USER || process.env.USER_DB_NAME || process.env.DB_NAME || 'elearning_users';
+
 // ─── Get Profile ──────────────────────────────────────────────────────────────
 async function getProfile(req, res) {
   const { userId } = req.params;
@@ -49,17 +52,30 @@ async function updateProfile(req, res) {
     }
 
     // 3. Update Profiles Table
-    const [existing] = await pool.query('SELECT id FROM profiles WHERE user_id = ?', [userId]);
+    const [existing] = await pool.query('SELECT * FROM profiles WHERE user_id = ?', [userId]);
+
+    // Jika user adalah role student dan bukan admin, lindungi full_name, department, dan academic_year
+    let finalFullName = full_name;
+    let finalDepartment = department;
+    let finalAcademicYear = academic_year;
+
+    if (req.user.role === 'student') {
+      if (existing.length > 0) {
+        finalFullName = existing[0].full_name || full_name;
+        finalDepartment = existing[0].department || department;
+        finalAcademicYear = existing[0].academic_year || academic_year;
+      }
+    }
 
     if (existing.length === 0) {
       await pool.query(
         'INSERT INTO profiles (user_id, full_name, phone, bio, department, academic_year, semester, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, full_name || '', phone || null, bio || null, department || null, academic_year || null, semester || null, req.user.role]
+        [userId, finalFullName || '', phone || null, bio || null, finalDepartment || null, finalAcademicYear || null, semester || null, req.user.role]
       );
     } else {
       await pool.query(
         'UPDATE profiles SET full_name = ?, phone = ?, bio = ?, department = ?, academic_year = ?, semester = ? WHERE user_id = ?',
-        [full_name, phone, bio, department, academic_year, semester, userId]
+        [finalFullName, phone, bio, finalDepartment, finalAcademicYear, semester, userId]
       );
     }
 
@@ -100,8 +116,8 @@ async function getAllProfiles(req, res) {
       p.bio,
       p.department,
       p.academic_year
-    FROM elearning_auth.users u
-    LEFT JOIN elearning_users.profiles p ON u.id = p.user_id
+    FROM ${AUTH_DB}.users u
+    LEFT JOIN ${USER_DB}.profiles p ON u.id = p.user_id
     WHERE 1=1
   `;
   const params = [];

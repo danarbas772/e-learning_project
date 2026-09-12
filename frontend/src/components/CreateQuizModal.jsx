@@ -5,10 +5,12 @@ import {
   CheckCircle2, AlertCircle, Clock, Calendar, HelpCircle,
   Sparkles, Layers, ListChecks, FileText, ChevronRight, ChevronLeft
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { downloadQuizTemplate, parseQuizExcel } from '../utils/quizExcelTemplate';
 import toast from 'react-hot-toast';
 
 export default function CreateQuizModal({ isOpen, onClose, onSuccess, initialCourseId, courseTitle }) {
+  const { user, isAdmin, isInstructor } = useAuth();
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
 
@@ -73,7 +75,12 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess, initialCou
   const loadCourses = async () => {
     setLoadingCourses(true);
     try {
-      const res = await courseAPI.getAll();
+      const params = {};
+      if (isInstructor) {
+        params.user_role = 'instructor';
+        if (user?.id) params.user_id = user.id;
+      }
+      const res = await courseAPI.getAll(params);
       setCourses(res.data?.data || []);
       if (!courseId && res.data?.data?.length > 0) {
         setCourseId(res.data.data[0].id);
@@ -302,7 +309,7 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess, initialCou
   return (
     <div className="create-quiz-backdrop animate-fadeIn">
       <div className="create-quiz-modal card animate-scaleUp">
-        
+
         {/* Modal Header */}
         <div className="create-quiz-header">
           <div className="header-title-box">
@@ -484,7 +491,7 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess, initialCou
                   <div className="instruction-text">
                     <h4>Upload Soal Secara Otomatis dari Excel</h4>
                     <p>
-                      Anda dapat mengunggah file Excel berisi 50 butir soal pilihan ganda maupun essay sekaligus. 
+                      Anda dapat mengunggah file Excel berisi 50 butir soal pilihan ganda maupun essay sekaligus.
                       Unduh contoh template format Excel resmi di bawah untuk memastikan data kolom sesuai.
                     </p>
                     <div className="template-download-row">
@@ -545,7 +552,7 @@ export default function CreateQuizModal({ isOpen, onClose, onSuccess, initialCou
             {/* ─── TAB MANUAL ENTRY (1 S/D 50 SOAL) ─── */}
             {inputTab === 'manual' && (
               <div className="manual-entry-container animate-fadeIn">
-                
+
                 {/* Ribbon Navigasi Cepat Nomor 1 - 50 */}
                 <div className="question-nav-bar">
                   <div className="nav-bar-header">

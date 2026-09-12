@@ -4,7 +4,7 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('eduspace-theme') || 'dark';
+    return localStorage.getItem('baslearning-theme') || localStorage.getItem('eduspace-theme') || 'dark';
   });
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export function ThemeProvider({ children }) {
       root.classList.remove('light-theme');
       root.classList.add('dark-theme');
     }
-    localStorage.setItem('eduspace-theme', theme);
+    localStorage.setItem('baslearning-theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

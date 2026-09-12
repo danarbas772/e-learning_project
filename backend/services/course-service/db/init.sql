@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS sections (
   course_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   order_index INT DEFAULT 0,
+  attendance_active BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
   INDEX idx_course (course_id)
@@ -37,7 +38,7 @@ CREATE TABLE IF NOT EXISTS materials (
   course_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  material_type ENUM('pdf', 'ppt', 'pptx', 'video', 'link', 'text') NOT NULL,
+  material_type ENUM('pdf', 'ppt', 'pptx', 'video', 'link', 'text', 'youtube', 'doc') NOT NULL,
   file_url VARCHAR(512),                    -- Path file di server
   file_name VARCHAR(255),                   -- Nama file asli
   file_size BIGINT,                         -- Ukuran dalam bytes
@@ -66,4 +67,21 @@ CREATE TABLE IF NOT EXISTS course_access_rules (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
   INDEX idx_course_access (course_id)
+);
+
+-- Tabel Presensi Pertemuan Mahasiswa (Dicatat 1x per mahasiswa per pertemuan)
+CREATE TABLE IF NOT EXISTS attendance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  section_id INT NOT NULL,
+  course_id INT NOT NULL,
+  student_id INT NOT NULL,
+  student_name VARCHAR(255),
+  student_nim VARCHAR(50),
+  attended_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_section_student (section_id, student_id),
+  INDEX idx_section (section_id),
+  INDEX idx_course (course_id),
+  INDEX idx_student (student_id),
+  FOREIGN KEY (section_id) REFERENCES sections(id) ON DELETE CASCADE,
+  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
 );

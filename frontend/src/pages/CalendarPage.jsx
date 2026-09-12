@@ -15,54 +15,8 @@ const MONTH_NAMES = [
 
 const DAY_NAMES = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
-// Default Academic & Lecture Events
-const SAMPLE_EVENTS = [
-  {
-    id: 1,
-    title: 'Pertemuan 1 - Pengenalan Kuliah & Kontrak',
-    course: 'Pemrograman Berbasis Web',
-    type: 'class', // class | exam | deadline | holiday
-    date: '2026-09-04',
-    time: '08:00 - 10:30 WIB',
-    room: 'Lab Komputer 3 / Online',
-  },
-  {
-    id: 2,
-    title: 'Ujian Tengah Semester (UTS) Web Programming',
-    course: 'Pemrograman Berbasis Web',
-    type: 'exam',
-    date: '2026-09-15',
-    time: '09:00 - 11:00 WIB',
-    room: 'Portal Ujian Online',
-  },
-  {
-    id: 3,
-    title: 'Batas Pengumpulan Tugas Desain Database',
-    course: 'Basis Data Lanjut',
-    type: 'deadline',
-    date: '2026-09-18',
-    time: '23:59 WIB',
-    room: 'Sistem LMS',
-  },
-  {
-    id: 4,
-    title: 'Libur Maulid Nabi Muhammad SAW',
-    course: 'Akademik Nasional',
-    type: 'holiday',
-    date: '2026-09-24',
-    time: 'Sepanjang Hari',
-    room: 'Hari Libur Nasional',
-  },
-  {
-    id: 5,
-    title: 'Sesi Praktikum React State & Hooks',
-    course: 'Pemrograman Web Lanjut',
-    type: 'class',
-    date: '2026-09-11',
-    time: '13:00 - 15:30 WIB',
-    room: 'Lab Rekayasa Perangkat Lunak',
-  },
-];
+// Academic & Lecture Events
+const SAMPLE_EVENTS = [];
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 8, 4)); // Sept 2026
@@ -270,18 +224,24 @@ export default function CalendarPage() {
               <div className="upcoming-section">
                 <h4>Seluruh Jadwal Bulan Ini</h4>
                 <div className="upcoming-list">
-                  {filteredEvents.map((ev) => (
-                    <div key={ev.id} className="upcoming-mini-item" onClick={() => setSelectedDateStr(ev.date)}>
-                      <div className="upcoming-date-col">
-                        <span className="upcoming-date-d">{ev.date.split('-')[2]}</span>
-                        <span className="upcoming-date-m">Sep</span>
-                      </div>
-                      <div className="upcoming-info-col">
-                        <span className="upcoming-item-title">{ev.title}</span>
-                        <span className="upcoming-item-sub">{ev.course}</span>
-                      </div>
+                  {filteredEvents.length === 0 ? (
+                    <div className="agenda-empty" style={{ padding: '20px 10px' }}>
+                      <p style={{ margin: 0 }}>Belum ada jadwal kegiatan untuk bulan ini.</p>
                     </div>
-                  ))}
+                  ) : (
+                    filteredEvents.map((ev) => (
+                      <div key={ev.id} className="upcoming-mini-item" onClick={() => setSelectedDateStr(ev.date)}>
+                        <div className="upcoming-date-col">
+                          <span className="upcoming-date-d">{ev.date.split('-')[2]}</span>
+                          <span className="upcoming-date-m">Sep</span>
+                        </div>
+                        <div className="upcoming-info-col">
+                          <span className="upcoming-item-title">{ev.title}</span>
+                          <span className="upcoming-item-sub">{ev.course}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

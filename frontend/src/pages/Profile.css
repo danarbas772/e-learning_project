@@ -137,6 +137,14 @@
   border-radius: var(--radius-md);
 }
 
+.profile-form .form-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
 @media (max-width: 600px) {
   .profile-header-card {
     padding: 20px 16px;

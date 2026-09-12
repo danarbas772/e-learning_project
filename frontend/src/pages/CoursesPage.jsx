@@ -15,6 +15,16 @@ import './Courses.css';
 const SEMESTERS = ['Semua', '1', '2', '3', '4', '5', '6', '7', '8'];
 const SKS_LIST = ['Semua', '2', '3', '4', '6'];
 
+// Helper: konversi judul matkul menjadi URL slug
+const toSlug = (str) => (str || '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9\s-]/g, '')
+  .trim()
+  .replace(/\s+/g, '-')
+  .replace(/-+/g, '-');
+
 function CourseCard({ course, onEdit, onDelete, onManageAccess, canManage, isAdmin }) {
   return (
     <div className="course-card card">
@@ -72,7 +82,7 @@ function CourseCard({ course, onEdit, onDelete, onManageAccess, canManage, isAdm
         )}
 
         <div className="course-card-footer">
-          <Link to={`/courses/${course.id}`} className="btn-forum-link">
+          <Link to={`/courses/${toSlug(course.title)}`} className="btn-forum-link">
             Lihat Forum & Materi
           </Link>
 
@@ -117,7 +127,8 @@ function CourseCard({ course, onEdit, onDelete, onManageAccess, canManage, isAdm
 
 export default function CoursesPage() {
   const { user, isAdmin, isInstructor } = useAuth();
-  const canManage = isAdmin || isInstructor;
+  // Hanya Admin yang dapat menambah, mengedit, atau menghapus mata kuliah
+  const canManage = isAdmin;
 
   const [courses, setCourses] = useState([]);
   const [instructors, setInstructors] = useState([]);
@@ -219,9 +230,10 @@ export default function CoursesPage() {
         }
       }
 
-      // Parameter akses untuk dosen — backend ambil user_id dari JWT token
+      // Parameter akses untuk dosen (hanya tampilkan mata kuliah yang diampu)
       if (user?.role === 'instructor') {
         params.user_role = 'instructor';
+        if (user.id) params.user_id = user.id;
       }
 
       const res = await courseAPI.getAll(params);
@@ -465,32 +477,64 @@ export default function CoursesPage() {
               <button type="submit" className="btn btn-primary">Cari</button>
             </form>
 
-            <div className="courses-filter-chips">
-              <span className="filter-label"><Calendar size={14} /> Semester:</span>
-              {SEMESTERS.map((sem) => (
-                <button
-                  key={sem}
-                  type="button"
-                  className={`filter-chip ${semesterFilter === sem ? 'active' : ''}`}
-                  onClick={() => setSemesterFilter(sem)}
-                >
-                  {sem === 'Semua' ? 'Semua Semester' : `Semester ${sem}`}
-                </button>
-              ))}
-            </div>
+            {/* Filter Dropdowns (Semester & SKS) */}
+            <div className="courses-filter-dropdowns">
+              <div className="filter-dropdown-group">
+                <label htmlFor="filter-semester" className="filter-dropdown-label">
+                  <Calendar size={15} />
+                  <span>Semester</span>
+                </label>
+                <div className="filter-select-wrapper">
+                  <select
+                    id="filter-semester"
+                    className="filter-select"
+                    value={semesterFilter}
+                    onChange={(e) => setSemesterFilter(e.target.value)}
+                  >
+                    {SEMESTERS.map((sem) => (
+                      <option key={sem} value={sem}>
+                        {sem === 'Semua' ? 'Semua Semester' : `Semester ${sem}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            <div className="courses-filter-chips">
-              <span className="filter-label"><Award size={14} /> SKS:</span>
-              {SKS_LIST.map((sks) => (
+              <div className="filter-dropdown-group">
+                <label htmlFor="filter-sks" className="filter-dropdown-label">
+                  <Award size={15} />
+                  <span>SKS</span>
+                </label>
+                <div className="filter-select-wrapper">
+                  <select
+                    id="filter-sks"
+                    className="filter-select"
+                    value={sksFilter}
+                    onChange={(e) => setSksFilter(e.target.value)}
+                  >
+                    {SKS_LIST.map((sks) => (
+                      <option key={sks} value={sks}>
+                        {sks === 'Semua' ? 'Semua SKS' : `${sks} SKS`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {(semesterFilter !== 'Semua' || sksFilter !== 'Semua') && (
                 <button
-                  key={sks}
                   type="button"
-                  className={`filter-chip ${sksFilter === sks ? 'active' : ''}`}
-                  onClick={() => setSksFilter(sks)}
+                  onClick={() => {
+                    setSemesterFilter('Semua');
+                    setSksFilter('Semua');
+                  }}
+                  className="btn-reset-filters"
+                  title="Reset Filter ke Default"
                 >
-                  {sks === 'Semua' ? 'Semua SKS' : `${sks} SKS`}
+                  <X size={14} />
+                  <span>Reset Filter</span>
                 </button>
-              ))}
+              )}
             </div>
           </div>
 
@@ -729,11 +773,11 @@ export default function CoursesPage() {
             <div className="access-modal-body">
               {/* Alert Status */}
               {accessModal.rules.length === 0 ? (
-                <div className="access-status-banner status-public">
-                  <Info size={20} />
+                <div className="access-status-banner status-restricted" style={{ borderColor: 'hsla(38, 90%, 50%, 0.4)', background: 'hsla(38, 90%, 50%, 0.08)' }}>
+                  <Lock size={20} style={{ color: 'hsl(38, 90%, 65%)' }} />
                   <div>
-                    <strong>Status: Publik (Terbuka untuk Semua Mahasiswa)</strong>
-                    <p>Mata kuliah ini belum dibatasi. Semua mahasiswa aktif dapat melihat dan mengakses mata kuliah ini di katalog.</p>
+                    <strong style={{ color: 'hsl(38, 90%, 75%)' }}>Status: Belum Ada Izin Akses (Terkunci)</strong>
+                    <p>Mata kuliah ini belum memiliki daftar izin akses, sehingga <strong>tidak ada mahasiswa yang dapat mengaksesnya</strong>. Masukkan nama mahasiswa atau tahun angkatan di bawah untuk memberikan akses.</p>
                   </div>
                 </div>
               ) : (

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'elearning_secret_key_2024';
+const USER_DB = process.env.DB_NAME_USER || process.env.USER_DB_NAME || process.env.DB_NAME || 'elearning_users';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '2h';
 
 // ─── Register ─────────────────────────────────────────────────────────────────
@@ -69,7 +70,7 @@ async function login(req, res) {
     let fullName = user.email;
     try {
       const [profs] = await pool.query(
-        'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+        `SELECT full_name FROM ${USER_DB}.profiles WHERE user_id = ?`,
         [user.id]
       );
       if (profs.length > 0 && profs[0].full_name && profs[0].full_name.trim()) {
@@ -113,7 +114,7 @@ async function verifyToken(req, res) {
     // Ambil full_name terbaru dari profile jika belum ada
     try {
       const [profs] = await pool.query(
-        'SELECT full_name FROM elearning_users.profiles WHERE user_id = ?',
+        `SELECT full_name FROM ${USER_DB}.profiles WHERE user_id = ?`,
         [decoded.id]
       );
       if (profs.length > 0 && profs[0].full_name && profs[0].full_name.trim()) {

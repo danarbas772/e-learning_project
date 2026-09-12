@@ -455,20 +455,34 @@ export default function ExamTakingModal({
         ) : quizResult ? (
           /* ─── CASE 3: HASIL UJIAN ─── */
           <div className="quiz-result-view animate-fadeIn">
-            <div className={`quiz-result-card ${quizResult.is_passed ? 'passed' : 'failed'}`}>
-              {quizResult.is_passed ? <CheckCircle2 size={56} /> : <AlertCircle size={56} />}
-              <h3>{quizResult.is_passed ? 'Selamat! Anda Telah Lulus' : 'Ujian Telah Diselesaikan'}</h3>
-              <div className="quiz-score-display">
-                <span className="score-number">{quizResult.score}</span>
-                <span className="score-total">/ 100</span>
-              </div>
+            <div className={`quiz-result-card ${quizResult.score !== null ? (quizResult.is_passed ? 'passed' : 'failed') : 'review'}`} style={quizResult.score === null ? { borderColor: 'hsla(38, 90%, 52%, 0.4)' } : {}}>
+              {quizResult.score !== null ? (
+                quizResult.is_passed ? <CheckCircle2 size={56} /> : <AlertCircle size={56} />
+              ) : (
+                <FileText size={56} style={{ color: 'hsl(38, 95%, 65%)' }} />
+              )}
+              <h3>
+                {quizResult.score !== null
+                  ? (quizResult.is_passed ? 'Selamat! Anda Telah Lulus' : 'Ujian Telah Diselesaikan')
+                  : 'Jawaban Berhasil Dikumpulkan'}
+              </h3>
+              {quizResult.score !== null ? (
+                <div className="quiz-score-display">
+                  <span className="score-number">{quizResult.score}</span>
+                  <span className="score-total">/ 100</span>
+                </div>
+              ) : (
+                <div style={{ margin: '14px 0', padding: '10px 18px', background: 'hsla(38, 90%, 52%, 0.12)', border: '1px solid hsla(38, 90%, 52%, 0.3)', borderRadius: 'var(--radius-md)', color: 'hsl(38, 95%, 70%)', fontSize: '0.95rem', fontWeight: 600 }}>
+                  📝 Soal Esai: Menunggu Penilaian &amp; Koreksi Dosen
+                </div>
+              )}
               <p className="quiz-score-sub">
                 {quizResult.total_mc_questions > 0 && (
                   <span>Jawaban Pilihan Ganda Benar: <strong>{quizResult.correct_count}</strong> dari {quizResult.total_mc_questions} butir.<br/></span>
                 )}
                 {quizResult.has_essay && (
                   <span style={{ color: 'hsl(215, 90%, 80%)' }}>
-                    ✨ Lembar jawaban esai Anda telah tersimpan dan menunggu penilaian dosen.
+                    ✨ Lembar jawaban esai Anda telah tersimpan rapi dan akan dikoreksi oleh dosen pengampu.
                   </span>
                 )}
                 {quizResult.already_completed && (

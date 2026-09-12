@@ -7,7 +7,7 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'elearning_users',
+  database: process.env.DB_NAME_USER || process.env.USER_DB_NAME || process.env.DB_NAME || 'elearning_users',
   waitForConnections: true,
   connectionLimit: 10,
 });
@@ -18,7 +18,7 @@ const authPool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.AUTH_DB_NAME || 'elearning_auth',
+  database: process.env.DB_NAME_AUTH || process.env.AUTH_DB_NAME || process.env.DB_NAME || 'elearning_auth',
   waitForConnections: true,
   connectionLimit: 10,
 });

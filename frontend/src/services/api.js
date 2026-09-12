@@ -20,12 +20,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // Jangan ubah/redirect ke session_message jika 401 berasal dari percobaan login (salah password/email)
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('login_time');
       sessionStorage.setItem('session_message', 'Sesi Anda telah berakhir. Silakan login kembali.');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -68,6 +72,13 @@ export const courseAPI = {
   createSection: (data) => api.post('/courses/sections', data),
   updateSection: (id, data) => api.put(`/courses/sections/${id}`, data),
   deleteSection: (id) => api.delete(`/courses/sections/${id}`),
+
+  // Attendance (Presensi)
+  toggleAttendance: (sectionId, isActive) => api.patch(`/courses/sections/${sectionId}/attendance-toggle`, { is_active: isActive }),
+  submitAttendance: (sectionId) => api.post(`/courses/sections/${sectionId}/attend`),
+  getAttendance: (sectionId) => api.get(`/courses/sections/${sectionId}/attendance`),
+  getInstructorAttendanceStats: () => api.get('/courses/stats/instructor-attendance'),
+  getAttendanceReport: (courseId) => api.get(`/courses/${courseId}/attendance-report`),
 
   uploadMaterial: (formData) => api.post('/courses/materials/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
