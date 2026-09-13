@@ -96,7 +96,11 @@ async function login(req, res) {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({
+      success: false,
+      message: `Database Error: ${err.message || 'Server error'}`,
+      code: err.code,
+    });
   }
 }
 

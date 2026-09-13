@@ -72,7 +72,7 @@ app.use(limiter);
 // Serve file statis materi kursus & forum
 app.use('/uploads', express.static(courseUploads));
 
-// ─── Health Check ────────────────────────────────────────────────────────────
+// ─── Health Check & DB Diagnostics ──────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -87,6 +87,38 @@ app.get('/health', (req, res) => {
       quizzes: 'mounted (/api/quizzes)',
     },
   });
+});
+
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const authDb = require('./services/auth-service/config/db');
+    const [test] = await authDb.query('SELECT 1 as connected');
+    const [tables] = await authDb.query('SHOW TABLES');
+    let userCount = 0;
+    try {
+      const [u] = await authDb.query('SELECT COUNT(*) as cnt FROM users');
+      userCount = u[0].cnt;
+    } catch (e) {
+      userCount = `Tabel users belum ada: ${e.message}`;
+    }
+    res.json({
+      success: true,
+      message: 'Database terhubung dengan sukses!',
+      status: test,
+      user_count: userCount,
+      tables: tables.map((t) => Object.values(t)[0]),
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: `Koneksi database GAGAL: ${err.message}`,
+      code: err.code,
+      errno: err.errno,
+      db_user: process.env.DB_USER,
+      db_name: process.env.DB_NAME_AUTH || process.env.DB_NAME,
+      db_host: process.env.DB_HOST,
+    });
+  }
 });
 
 // ─── In-Memory Router Mounting ────────────────────────────────────────────────
