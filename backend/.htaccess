@@ -1,0 +1,18 @@
+# ==========================================
+# E-LEARNING BACKEND .htaccess (cPanel / Apache / LiteSpeed)
+# ==========================================
+
+<IfModule mod_headers.c>
+    # Header CORS permanen untuk segala respon
+    Header always set Access-Control-Allow-Origin "https://e-learning.basdev.online"
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header always set Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# Handle Preflight OPTIONS request langsung dengan 200 OK
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
+</IfModule>

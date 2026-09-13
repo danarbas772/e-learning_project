@@ -25,21 +25,35 @@ const userUploads = path.join(__dirname, 'services/user-service/uploads');
 if (!fs.existsSync(courseUploads)) fs.mkdirSync(courseUploads, { recursive: true });
 if (!fs.existsSync(userUploads)) fs.mkdirSync(userUploads, { recursive: true });
 
-// ─── Global Middleware ────────────────────────────────────────────────────────
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  'http://localhost:3000',
-  'https://e-learning.webdev.online',
-];
+// ─── Global CORS & Preflight Middleware ────────────────────────────────────────
+// Selalu pasang header CORS pada SEMUA request agar browser tidak pernah memblokir
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // Izinkan origin dari domain basdev.online, webdev.online, localhost, atau jika ada FRONTEND_URL
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+
+  // Jika browser mengirim preflight request OPTIONS, langsung jawab 200 OK
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Explicit wildcard OPTIONS route
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  res.header('Access-Control-Allow-Origin', origin || '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  return res.status(200).end();
+});
+
 app.use(cors({
-  origin: (origin, callback) => {
-    // Izinkan request tanpa origin (misal: curl, Postman) atau dari allowed origins
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
