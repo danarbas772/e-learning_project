@@ -45,24 +45,48 @@ async function createQuiz(req, res) {
       return res.status(403).json({ success: false, message: 'Anda hanya dapat membuat ujian pada mata kuliah yang Anda ampu.' });
     }
 
-    const [quizResult] = await conn.query(
-      `INSERT INTO quizzes 
-        (course_id, section_id, title, description, quiz_type, time_limit_minutes, passing_score, start_time, end_time, created_by, is_published) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        course_id,
-        section_id || null,
-        title,
-        description || '',
-        quiz_type,
-        time_limit_minutes,
-        passing_score,
-        start_time ? new Date(start_time) : null,
-        end_time ? new Date(end_time) : null,
-        created_by,
-        is_published ? 1 : 0
-      ]
-    );
+    let quizResult;
+    try {
+      [quizResult] = await conn.query(
+        `INSERT INTO quizzes 
+          (course_id, section_id, title, description, quiz_type, time_limit_minutes, passing_score, start_time, end_time, created_by, is_published) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          course_id,
+          section_id || null,
+          title,
+          description || '',
+          quiz_type,
+          time_limit_minutes,
+          passing_score,
+          start_time ? new Date(start_time) : null,
+          end_time ? new Date(end_time) : null,
+          created_by,
+          is_published ? 1 : 0
+        ]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+        // Fallback jika kolom quiz_type, start_time, atau end_time belum ada di DB
+        [quizResult] = await conn.query(
+          `INSERT INTO quizzes 
+            (course_id, section_id, title, description, time_limit_minutes, passing_score, created_by, is_published) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            course_id,
+            section_id || null,
+            title,
+            description || '',
+            time_limit_minutes,
+            passing_score,
+            created_by,
+            is_published ? 1 : 0
+          ]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
     const quizId = quizResult.insertId;
 
     // Simpan butir-butir pertanyaan (bisa sampai 50 soal atau lebih)
@@ -74,11 +98,25 @@ async function createQuiz(req, res) {
         const qPoints = q.points || 1;
         const qOrder = q.order_index !== undefined ? q.order_index : i;
 
-        const [qResult] = await conn.query(
-          'INSERT INTO questions (quiz_id, question_text, question_type, points, order_index) VALUES (?, ?, ?, ?, ?)',
-          [quizId, qText, qType, qPoints, qOrder]
-        );
-        const questionId = qResult.insertId;
+        let questionId;
+        try {
+          const [qResult] = await conn.query(
+            'INSERT INTO questions (quiz_id, question_text, question_type, points, order_index) VALUES (?, ?, ?, ?, ?)',
+            [quizId, qText, qType, qPoints, qOrder]
+          );
+          questionId = qResult.insertId;
+        } catch (qErr) {
+          // Jika enum belum dukung 'essay', fallback ke 'short_answer'
+          if (qErr.code === 'WARN_DATA_TRUNCATED' || qErr.code === 'ER_WARN_DATA_TRUNCATED') {
+            const [qResult] = await conn.query(
+              'INSERT INTO questions (quiz_id, question_text, question_type, points, order_index) VALUES (?, ?, ?, ?, ?)',
+              [quizId, qText, 'short_answer', qPoints, qOrder]
+            );
+            questionId = qResult.insertId;
+          } else {
+            throw qErr;
+          }
+        }
 
         // Jika soal pilihan ganda, simpan pilihan opsi A, B, C, D, E
         if (q.options && Array.isArray(q.options) && q.options.length > 0) {

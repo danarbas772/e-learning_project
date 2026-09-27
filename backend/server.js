@@ -15,6 +15,7 @@ const quizRoutes = require('./services/quiz-service/routes/quizRoutes');
 
 // Shared Error Handler
 const { errorHandler, notFound } = require('./shared/errorHandler');
+const { runAutoMigration } = require('./shared/autoMigrate');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -144,6 +145,9 @@ if (require.main === module) {
     console.log(`   - /api/enrollments`);
     console.log(`   - /api/quizzes`);
     console.log(`📁 Static files: /uploads`);
+
+    // Run auto-migration safely
+    runAutoMigration().catch((e) => console.warn('Auto migration notice:', e.message));
   });
 
   server.on('error', (err) => {

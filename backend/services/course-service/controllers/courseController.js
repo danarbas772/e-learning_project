@@ -535,7 +535,19 @@ async function toggleAttendance(req, res) {
   const { is_active } = req.body; // boolean opsional; jika undefined, toggle otomatis
 
   try {
-    const [sections] = await pool.query('SELECT id, course_id, attendance_active FROM sections WHERE id = ?', [id]);
+    let sections;
+    let colName = 'attendance_active';
+    try {
+      [sections] = await pool.query('SELECT id, course_id, attendance_active FROM sections WHERE id = ?', [id]);
+    } catch (colErr) {
+      if (colErr.code === 'ER_BAD_FIELD_ERROR') {
+        colName = 'attendance_open';
+        [sections] = await pool.query('SELECT id, course_id, attendance_open AS attendance_active FROM sections WHERE id = ?', [id]);
+      } else {
+        throw colErr;
+      }
+    }
+
     if (sections.length === 0) {
       return res.status(404).json({ success: false, message: 'Pertemuan tidak ditemukan' });
     }
@@ -543,7 +555,13 @@ async function toggleAttendance(req, res) {
     const currentStatus = Boolean(sections[0].attendance_active);
     const newStatus = is_active !== undefined ? Boolean(is_active) : !currentStatus;
 
-    await pool.query('UPDATE sections SET attendance_active = ? WHERE id = ?', [newStatus, id]);
+    await pool.query(`UPDATE sections SET ${colName} = ? WHERE id = ?`, [newStatus, id]);
+    // Sync alternative column if present
+    if (colName === 'attendance_active') {
+      try { await pool.query('UPDATE sections SET attendance_open = ? WHERE id = ?', [newStatus, id]); } catch (e) {}
+    } else {
+      try { await pool.query('UPDATE sections SET attendance_active = ? WHERE id = ?', [newStatus, id]); } catch (e) {}
+    }
 
     res.json({
       success: true,
@@ -567,7 +585,17 @@ async function submitAttendance(req, res) {
 
   try {
     // 1. Cek apakah section ada dan attendance_active
-    const [sections] = await pool.query('SELECT id, course_id, attendance_active, title FROM sections WHERE id = ?', [id]);
+    let sections;
+    try {
+      [sections] = await pool.query('SELECT id, course_id, attendance_active, title FROM sections WHERE id = ?', [id]);
+    } catch (colErr) {
+      if (colErr.code === 'ER_BAD_FIELD_ERROR') {
+        [sections] = await pool.query('SELECT id, course_id, attendance_open AS attendance_active, title FROM sections WHERE id = ?', [id]);
+      } else {
+        throw colErr;
+      }
+    }
+
     if (sections.length === 0) {
       return res.status(404).json({ success: false, message: 'Pertemuan tidak ditemukan' });
     }
@@ -608,11 +636,22 @@ async function submitAttendance(req, res) {
       }
     } catch (e) {}
 
-    // 3. Simpan ke database (UNIQUE constraint pada section_id + student_id menjamin integritas 1x)
-    await pool.query(
-      'INSERT INTO attendance (section_id, course_id, student_id, student_name, student_nim) VALUES (?, ?, ?, ?, ?)',
-      [id, section.course_id, studentId, finalStudentName, studentNim]
-    );
+    // 3. Simpan ke database (dengan fallback jika kolom student_name / student_nim belum ada)
+    try {
+      await pool.query(
+        'INSERT INTO attendance (section_id, course_id, student_id, student_name, student_nim) VALUES (?, ?, ?, ?, ?)',
+        [id, section.course_id, studentId, finalStudentName, studentNim]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+        await pool.query(
+          'INSERT INTO attendance (section_id, course_id, student_id) VALUES (?, ?, ?)',
+          [id, section.course_id, studentId]
+        );
+      } else {
+        throw insertErr;
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -671,10 +710,22 @@ async function getCourseAttendanceReport(req, res) {
     }
 
     // 2. Ambil seluruh sesi/pertemuan mata kuliah urut order_index
-    const [sections] = await pool.query(
-      'SELECT id, title, order_index, attendance_active, created_at FROM sections WHERE course_id = ? ORDER BY order_index ASC',
-      [courseId]
-    );
+    let sections;
+    try {
+      [sections] = await pool.query(
+        'SELECT id, title, order_index, attendance_active, created_at FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+        [courseId]
+      );
+    } catch (secErr) {
+      if (secErr.code === 'ER_BAD_FIELD_ERROR') {
+        [sections] = await pool.query(
+          'SELECT id, title, order_index, attendance_open AS attendance_active, created_at FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+          [courseId]
+        );
+      } else {
+        throw secErr;
+      }
+    }
 
     // 3. Ambil daftar mahasiswa yang memiliki akses ke matkul ini
     const [rules] = await pool.query(
@@ -815,10 +866,22 @@ async function getInstructorAttendanceStats(req, res) {
 
     for (const c of courses) {
       // Ambil seluruh pertemuan matkul ini urut order_index ASC
-      const [sections] = await pool.query(
-        'SELECT id, course_id, title, order_index, attendance_active FROM sections WHERE course_id = ? ORDER BY order_index ASC',
-        [c.id]
-      );
+      let sections;
+      try {
+        [sections] = await pool.query(
+          'SELECT id, course_id, title, order_index, attendance_active FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+          [c.id]
+        );
+      } catch (secErr) {
+        if (secErr.code === 'ER_BAD_FIELD_ERROR') {
+          [sections] = await pool.query(
+            'SELECT id, course_id, title, order_index, attendance_open AS attendance_active FROM sections WHERE course_id = ? ORDER BY order_index ASC',
+            [c.id]
+          );
+        } else {
+          throw secErr;
+        }
+      }
 
       if (sections.length === 0) continue;
 
@@ -1016,11 +1079,32 @@ async function createAnnouncement(req, res) {
   }
 
   try {
-    const [result] = await pool.query(
-      `INSERT INTO announcements (course_id, title, content, file_url, file_name, file_size, author_id, author_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [courseId, title, content, file_url, file_name, file_size, author_id, author_name]
-    );
+    let result;
+    try {
+      [result] = await pool.query(
+        `INSERT INTO announcements (course_id, title, content, file_url, file_name, file_size, author_id, author_name, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [courseId, title, content, file_url, file_name, file_size, author_id, author_name, author_id]
+      );
+    } catch (insertErr) {
+      if (insertErr.code === 'ER_BAD_FIELD_ERROR') {
+        try {
+          [result] = await pool.query(
+            `INSERT INTO announcements (course_id, title, content, file_url, file_name, file_size, author_id, author_name)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [courseId, title, content, file_url, file_name, file_size, author_id, author_name]
+          );
+        } catch (insertErr2) {
+          [result] = await pool.query(
+            `INSERT INTO announcements (course_id, title, content, file_url, file_name, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [courseId, title, content, file_url, file_name, author_id]
+          );
+        }
+      } else {
+        throw insertErr;
+      }
+    }
     res.status(201).json({
       success: true,
       message: 'Pengumuman berhasil diposting',

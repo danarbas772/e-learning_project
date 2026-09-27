@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS `sections` (
   `course_id` INT NOT NULL,
   `title` VARCHAR(255) NOT NULL,
   `order_index` INT DEFAULT 0,
+  `attendance_active` BOOLEAN DEFAULT FALSE,
   `attendance_open` BOOLEAN DEFAULT FALSE,
   `attendance_started_at` TIMESTAMP NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -126,7 +127,10 @@ CREATE TABLE IF NOT EXISTS `announcements` (
   `content` TEXT,
   `file_url` VARCHAR(512),
   `file_name` VARCHAR(255),
-  `created_by` INT NOT NULL,
+  `file_size` BIGINT DEFAULT NULL,
+  `author_id` INT DEFAULT NULL,
+  `author_name` VARCHAR(255) DEFAULT NULL,
+  `created_by` INT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE
 );
@@ -135,9 +139,11 @@ CREATE TABLE IF NOT EXISTS `comments` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `course_id` INT NOT NULL,
   `session_id` INT,
+  `announcement_id` INT NULL,
   `parent_id` INT NULL,
   `user_id` INT NOT NULL,
   `user_name` VARCHAR(255),
+  `user_role` VARCHAR(50) DEFAULT 'student',
   `comment_text` TEXT NOT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`course_id`) REFERENCES `courses`(`id`) ON DELETE CASCADE
@@ -148,6 +154,8 @@ CREATE TABLE IF NOT EXISTS `attendance` (
   `course_id` INT NOT NULL,
   `section_id` INT NOT NULL,
   `student_id` INT NOT NULL,
+  `student_name` VARCHAR(255) DEFAULT NULL,
+  `student_nim` VARCHAR(50) DEFAULT NULL,
   `attended_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY `unique_attendance` (`section_id`, `student_id`)
 );
@@ -184,8 +192,11 @@ CREATE TABLE IF NOT EXISTS `quizzes` (
   `section_id` INT,
   `title` VARCHAR(255) NOT NULL,
   `description` TEXT,
+  `quiz_type` VARCHAR(50) DEFAULT 'multiple_choice',
   `time_limit_minutes` INT DEFAULT 0,
   `passing_score` INT DEFAULT 70,
+  `start_time` DATETIME NULL,
+  `end_time` DATETIME NULL,
   `created_by` INT NOT NULL,
   `is_published` BOOLEAN DEFAULT TRUE,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
