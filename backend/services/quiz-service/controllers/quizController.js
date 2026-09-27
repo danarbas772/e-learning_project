@@ -149,6 +149,38 @@ async function createQuiz(req, res) {
   }
 }
 
+// Helper untuk mengambil identitas akses mahasiswa (ID, angkatan, nama lengkap)
+async function getStudentAccessInfo(userId, reqQuery = {}) {
+  let academicYear = reqQuery.user_academic_year ? String(reqQuery.user_academic_year).trim() : '';
+  let fullName = reqQuery.user_name ? String(reqQuery.user_name).trim() : '';
+
+  if (!academicYear || !fullName) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT full_name, academic_year FROM ${USER_DB}.profiles WHERE user_id = ? LIMIT 1`,
+        [userId]
+      );
+      if (rows.length > 0) {
+        if (!fullName && rows[0].full_name) fullName = String(rows[0].full_name).trim();
+        if (!academicYear && rows[0].academic_year) academicYear = String(rows[0].academic_year).trim();
+      }
+    } catch (e) {
+      try {
+        const [rows] = await pool.query(
+          'SELECT full_name, academic_year FROM profiles WHERE user_id = ? LIMIT 1',
+          [userId]
+        );
+        if (rows.length > 0) {
+          if (!fullName && rows[0].full_name) fullName = String(rows[0].full_name).trim();
+          if (!academicYear && rows[0].academic_year) academicYear = String(rows[0].academic_year).trim();
+        }
+      } catch (err2) {}
+    }
+  }
+
+  return { userId: parseInt(userId, 10), academicYear, fullName };
+}
+
 // ─── Get Quizzes by Course ────────────────────────────────────────────────────
 async function getQuizzesByCourse(req, res) {
   const { courseId } = req.params;
@@ -173,6 +205,24 @@ async function getQuizzesByCourse(req, res) {
 
     if (isStudent) {
       sql += ' AND q.is_published = TRUE';
+      const studentInfo = await getStudentAccessInfo(userId, req.query);
+      sql += ` AND EXISTS (
+        SELECT 1 FROM ${COURSE_DB}.course_access_rules ar
+        WHERE ar.course_id = c.id
+          AND (
+            (ar.user_id IS NOT NULL AND ar.user_id = ?)
+            OR (ar.rule_type = 'year' AND ? != '' AND ar.academic_year = ?)
+            OR (ar.rule_type IN ('name', 'student') AND ar.user_id IS NULL AND ? != '' AND (
+              LOWER(ar.full_name) = LOWER(?)
+              OR LOWER(ar.full_name) LIKE CONCAT('%', LOWER(?), '%')
+            ))
+          )
+      )`;
+      params.push(
+        studentInfo.userId,
+        studentInfo.academicYear, studentInfo.academicYear,
+        studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+      );
     } else if (isInstructor) {
       // Dosen hanya dapat melihat ujian pada mata kuliah miliknya sendiri
       sql += ' AND (c.instructor_id = ? OR q.created_by = ?)';
@@ -180,7 +230,17 @@ async function getQuizzesByCourse(req, res) {
     }
     sql += ' ORDER BY q.created_at DESC';
 
-    const [quizzes] = await pool.query(sql, params);
+    let quizzes;
+    try {
+      [quizzes] = await pool.query(sql, params);
+    } catch (dbErr) {
+      if (dbErr.code === 'ER_NO_SUCH_TABLE' && sql.includes(`${COURSE_DB}.course_access_rules`)) {
+        const fallbackSql = sql.replace(new RegExp(`${COURSE_DB}\\.course_access_rules`, 'g'), 'course_access_rules');
+        [quizzes] = await pool.query(fallbackSql, params);
+      } else {
+        throw dbErr;
+      }
+    }
     res.json({ success: true, data: quizzes, server_time: new Date().toISOString() });
   } catch (err) {
     console.error('Get quizzes by course error:', err);
@@ -213,6 +273,24 @@ async function getAllQuizzes(req, res) {
 
     if (isStudent) {
       sql += ' AND q.is_published = TRUE';
+      const studentInfo = await getStudentAccessInfo(userId, req.query);
+      sql += ` AND EXISTS (
+        SELECT 1 FROM ${COURSE_DB}.course_access_rules ar
+        WHERE ar.course_id = c.id
+          AND (
+            (ar.user_id IS NOT NULL AND ar.user_id = ?)
+            OR (ar.rule_type = 'year' AND ? != '' AND ar.academic_year = ?)
+            OR (ar.rule_type IN ('name', 'student') AND ar.user_id IS NULL AND ? != '' AND (
+              LOWER(ar.full_name) = LOWER(?)
+              OR LOWER(ar.full_name) LIKE CONCAT('%', LOWER(?), '%')
+            ))
+          )
+      )`;
+      params.push(
+        studentInfo.userId,
+        studentInfo.academicYear, studentInfo.academicYear,
+        studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+      );
     } else if (isInstructor) {
       // Dosen hanya dapat melihat ujian pada mata kuliah miliknya sendiri atau yang ia buat
       sql += ' AND (c.instructor_id = ? OR q.created_by = ?)';
@@ -220,7 +298,17 @@ async function getAllQuizzes(req, res) {
     }
     sql += ' ORDER BY q.created_at DESC';
 
-    const [quizzes] = await pool.query(sql, params);
+    let quizzes;
+    try {
+      [quizzes] = await pool.query(sql, params);
+    } catch (dbErr) {
+      if (dbErr.code === 'ER_NO_SUCH_TABLE' && sql.includes(`${COURSE_DB}.course_access_rules`)) {
+        const fallbackSql = sql.replace(new RegExp(`${COURSE_DB}\\.course_access_rules`, 'g'), 'course_access_rules');
+        [quizzes] = await pool.query(fallbackSql, params);
+      } else {
+        throw dbErr;
+      }
+    }
     res.json({ success: true, data: quizzes, server_time: new Date().toISOString() });
   } catch (err) {
     console.error('Get all quizzes error:', err);
@@ -233,6 +321,7 @@ async function getQuizById(req, res) {
   const { id } = req.params;
   const userId = req.user.id;
   const isPrivileged = req.user.role === 'instructor' || req.user.role === 'admin';
+  const isStudent = req.user.role === 'student';
 
   try {
     const [quizzes] = await pool.query(
@@ -262,6 +351,62 @@ async function getQuizById(req, res) {
         success: false,
         message: 'Ujian ini sedang dinonaktifkan / berstatus draft dan belum dibuka untuk mahasiswa.'
       });
+    }
+
+    // Proteksi Hak Akses Mahasiswa: Mahasiswa hanya boleh melihat/mengerjakan kuis jika diberi izin akses pada mata kuliahnya
+    if (isStudent) {
+      const studentInfo = await getStudentAccessInfo(userId, req.query);
+      let rules = [];
+      try {
+        const [r] = await pool.query(
+          `SELECT 1 FROM ${COURSE_DB}.course_access_rules
+           WHERE course_id = ?
+             AND (
+               (user_id IS NOT NULL AND user_id = ?)
+               OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
+               OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
+                 LOWER(full_name) = LOWER(?)
+                 OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
+               ))
+             ) LIMIT 1`,
+          [
+            quiz.course_id,
+            studentInfo.userId,
+            studentInfo.academicYear, studentInfo.academicYear,
+            studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+          ]
+        );
+        rules = r;
+      } catch (errRule) {
+        try {
+          const [r] = await pool.query(
+            `SELECT 1 FROM course_access_rules
+             WHERE course_id = ?
+               AND (
+                 (user_id IS NOT NULL AND user_id = ?)
+                 OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
+                 OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
+                   LOWER(full_name) = LOWER(?)
+                   OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
+                 ))
+               ) LIMIT 1`,
+            [
+              quiz.course_id,
+              studentInfo.userId,
+              studentInfo.academicYear, studentInfo.academicYear,
+              studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+            ]
+          );
+          rules = r;
+        } catch (errRule2) {}
+      }
+
+      if (rules.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki hak akses untuk mata kuliah ini, sehingga tidak dapat mengakses atau mengerjakan ujian ini.'
+        });
+      }
     }
 
     // Proteksi: Dosen hanya dapat mengakses ujian miliknya sendiri atau mata kuliah yang diampunya
@@ -396,6 +541,63 @@ async function submitQuiz(req, res) {
         success: false,
         message: 'Ujian ini sedang dinonaktifkan sehingga tidak dapat dikerjakan atau dikumpulkan.'
       });
+    }
+
+    // Proteksi: Mahasiswa dilarang submit jika tidak memiliki izin akses pada mata kuliah terkait
+    if (!isPrivileged) {
+      const studentInfo = await getStudentAccessInfo(user_id, req.query);
+      let rules = [];
+      try {
+        const [r] = await conn.query(
+          `SELECT 1 FROM ${COURSE_DB}.course_access_rules
+           WHERE course_id = ?
+             AND (
+               (user_id IS NOT NULL AND user_id = ?)
+               OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
+               OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
+                 LOWER(full_name) = LOWER(?)
+                 OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
+               ))
+             ) LIMIT 1`,
+          [
+            quiz.course_id,
+            studentInfo.userId,
+            studentInfo.academicYear, studentInfo.academicYear,
+            studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+          ]
+        );
+        rules = r;
+      } catch (errRule) {
+        try {
+          const [r] = await conn.query(
+            `SELECT 1 FROM course_access_rules
+             WHERE course_id = ?
+               AND (
+                 (user_id IS NOT NULL AND user_id = ?)
+                 OR (rule_type = 'year' AND ? != '' AND academic_year = ?)
+                 OR (rule_type IN ('name', 'student') AND user_id IS NULL AND ? != '' AND (
+                   LOWER(full_name) = LOWER(?)
+                   OR LOWER(full_name) LIKE CONCAT('%', LOWER(?), '%')
+                 ))
+               ) LIMIT 1`,
+            [
+              quiz.course_id,
+              studentInfo.userId,
+              studentInfo.academicYear, studentInfo.academicYear,
+              studentInfo.fullName, studentInfo.fullName, studentInfo.fullName
+            ]
+          );
+          rules = r;
+        } catch (errRule2) {}
+      }
+
+      if (rules.length === 0) {
+        await conn.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki hak akses untuk mata kuliah ini, sehingga tidak dapat mengumpulkan jawaban ujian.'
+        });
+      }
     }
 
     // Cek apakah mahasiswa sudah pernah submit ujian ini sebelumnya (One attempt rule)
